@@ -17,7 +17,7 @@
       "unknown": "Unexpected error"
     },
     "abort": {
-      "already_configured": "Device is already configured"
+      "already_configured": "Integrationen er allerede konfigureret med dette refresh token. Hvis du vil opdatere, skal du først slette den eksisterende integration eller bruge 'Reconfigure'."
     }
   }
 }

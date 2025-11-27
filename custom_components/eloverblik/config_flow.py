@@ -5,6 +5,7 @@ from typing import Dict, Any, Optional
 import voluptuous as vol
 
 from homeassistant import config_entries, core, exceptions
+from homeassistant.data_entry_flow import AbortFlow
 
 from .const import DOMAIN  # pylint:disable=unused-import
 from .api_client import EloverblikAPI, EloverblikAuthError, EloverblikAPIError
@@ -126,6 +127,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                 errors["base"] = "no_metering_points"
                             else:
                                 # Create entry with all metering points
+                                # Use refresh_token as unique_id to prevent duplicates
                                 await self.async_set_unique_id(refresh_token)
                                 self._abort_if_unique_id_configured()
                                 
@@ -137,6 +139,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                     }
                                 )
                             
+                except AbortFlow:
+                    # Re-raise AbortFlow - this is expected when integration is already configured
+                    raise
                 except EloverblikAuthError:
                     errors["base"] = "invalid_auth"
                 except EloverblikAPIError:
