@@ -226,8 +226,12 @@ class EloverblikStatistic(SensorEntity):
             from_date = pytz.utc.localize(datetime.utcfromtimestamp(last_stat["start"])) + timedelta(hours=1)
 
         # Data is typically 1-3 days delayed, so only fetch up to 2 days ago
-        # Data is 1-3 days delayed, so fetch up to 2 days ago
-        to_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=2)
+        # Convert to naive datetime for API call (API expects dates, not datetimes with timezone)
+        if from_date.tzinfo is not None:
+            from_date = from_date.replace(tzinfo=None)
+        
+        # Use UTC midnight to avoid timezone issues
+        to_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=2)
         
         # Don't fetch if from_date is too recent
         if from_date >= to_date:

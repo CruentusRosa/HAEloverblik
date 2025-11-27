@@ -214,6 +214,16 @@ class EloverblikAPI:
         Returns:
             Parsed time series data or None if error
         """
+        # Convert to naive datetime if timezone-aware (API expects dates without timezone)
+        if date_from.tzinfo is not None:
+            date_from = date_from.replace(tzinfo=None)
+        if date_to.tzinfo is not None:
+            date_to = date_to.replace(tzinfo=None)
+        
+        # Ensure we're using date only (no time component)
+        date_from = date_from.replace(hour=0, minute=0, second=0, microsecond=0)
+        date_to = date_to.replace(hour=0, minute=0, second=0, microsecond=0)
+        
         date_from_str = date_from.strftime("%Y-%m-%d")
         date_to_str = date_to.strftime("%Y-%m-%d")
         
