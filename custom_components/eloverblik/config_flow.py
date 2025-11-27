@@ -16,6 +16,50 @@ INITIAL_SCHEMA = vol.Schema(
         vol.Required("refresh_token"): str,
     })
 
+def validate_refresh_token(token: str) -> bool:
+    """Validate refresh token format.
+    
+    Refresh tokens are JWT tokens, so they should:
+    - Start with 'eyJ' (base64 encoded JWT header)
+    - Contain at least two dots (header.payload.signature)
+    - Be reasonably long (JWT tokens are typically 100+ characters)
+    """
+    if not token or not isinstance(token, str):
+        return False
+    
+    # Basic JWT format check (header.payload.signature)
+    parts = token.split('.')
+    if len(parts) != 3:
+        return False
+    
+    # Check if it starts with typical JWT header
+    if not token.startswith('eyJ'):
+        return False
+    
+    # Check minimum length (JWT tokens are typically 100+ characters)
+    if len(token) < 50:
+        return False
+    
+    return True
+
+def validate_metering_point_id(mp_id: str) -> bool:
+    """Validate metering point ID format.
+    
+    Metering point IDs should be 18 characters (alphanumeric).
+    """
+    if not mp_id or not isinstance(mp_id, str):
+        return False
+    
+    # Should be 18 characters
+    if len(mp_id) != 18:
+        return False
+    
+    # Should be alphanumeric
+    if not mp_id.isalnum():
+        return False
+    
+    return True
+
 async def validate_input(hass: core.HomeAssistant, data: Dict[str, Any]):
     """Validate the user input allows us to connect.
 
@@ -24,13 +68,21 @@ async def validate_input(hass: core.HomeAssistant, data: Dict[str, Any]):
     token = data["refresh_token"]
     metering_point = data.get("metering_point")
 
+    # Validate refresh token format
+    if not validate_refresh_token(token):
+        raise InvalidAuth("Invalid refresh token format. Please check your token from eloverblik.dk")
+
+    # Validate metering point format if provided
+    if metering_point and not validate_metering_point_id(metering_point):
+        raise InvalidMeteringPoint("Invalid metering point ID format. Must be 18 alphanumeric characters.")
+
     api = EloverblikAPI(token)
 
     try:
         # Validate token by getting metering points
         metering_points = await hass.async_add_executor_job(api.get_metering_points, False)
         if metering_points is None:
-            raise CannotConnect("Failed to retrieve metering points")
+            raise CannotConnect("Failed to retrieve metering points. Please check your internet connection and try again.")
         
         if not metering_points:
             raise NoMeteringPoints("No metering points found. Please ensure you have linked metering points in the Eloverblik portal.")
@@ -39,13 +91,13 @@ async def validate_input(hass: core.HomeAssistant, data: Dict[str, Any]):
         if metering_point:
             valid_ids = [mp.get("meteringPointId") for mp in metering_points if mp.get("meteringPointId")]
             if metering_point not in valid_ids:
-                raise InvalidMeteringPoint(f"Metering point {metering_point} not found in your account")
+                raise InvalidMeteringPoint(f"Metering point {metering_point} not found in your account. Please select from the list.")
         
         return {"title": f"Eloverblik {metering_point}" if metering_point else "Eloverblik"}
     except EloverblikAuthError as error:
-        raise InvalidAuth() from error
+        raise InvalidAuth("Invalid or expired refresh token. Please generate a new token from eloverblik.dk") from error
     except EloverblikAPIError as error:
-        raise CannotConnect() from error
+        raise CannotConnect(f"Unable to connect to Eloverblik API: {error}") from error
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):

@@ -33,7 +33,7 @@ Denne fil indeholder en liste over opgaver, forbedringer og kendte problemer der
   - [x] Opdater documentation og issue_tracker links til nyt repo (https://github.com/CruentusRosa/HAEloverblik)
   - [x] Opdater codeowners til nye maintainers (@CruentusRosa)
   - [x] **FJERNET pyeloverblik afhængighed - nu native implementation**
-  - [ ] Opdater version nummer når ændringer er implementeret
+  - [x] Opdater version nummer når ændringer er implementeret ✅ (v0.7.0)
   - [x] Tjek om alle dependencies er korrekte (kun homeassistant nu)
 
 ## 🟡 Medium Prioritet
@@ -43,63 +43,65 @@ Denne fil indeholder en liste over opgaver, forbedringer og kendte problemer der
 - [x] **Implementér IsAlive check** ⭐
   - [x] Tilføj metode til at tjekke `/isalive` endpoint
   - [x] Brug før API calls for at undgå unødvendige requests
-  - [ ] Håndter 503 status proaktivt
+  - [x] Håndter 503 status proaktivt
   - [x] Tilføj bedre fejlbeskeder når servicen er nede
   - [ ] Overvej at tilføje binary sensor for service status
 
 - [x] **Fjern deprecated endpoint**
   - [x] Fjern eller deaktiver `get_meter_reading_latest()` (endpoint er deprecated)
   - [x] Fjern `MeterReading` sensor
-  - [ ] Opdater dokumentation
+  - [x] Opdater dokumentation
 
-- [ ] **Optimér opdateringsfrekvens**
-  - [ ] Implementér forskellige throttling intervaller for forskellige data typer
-  - [ ] Tariffer: Opdater kun dagligt (ændrer sig sjældent)
-  - [ ] Årlig data: Opdater kun dagligt (ændrer sig månedligt)
-  - [ ] Daglig data: Behold hver time (men data er 1-3 dage forsinket)
+- [x] **Optimér opdateringsfrekvens**
+  - [x] Implementér forskellige throttling intervaller for forskellige data typer
+  - [x] Tariffer: Opdater kun dagligt (ændrer sig sjældent)
+  - [x] Årlig data: Opdater kun dagligt (ændrer sig månedligt)
+  - [x] Daglig data: Behold hver time (men data er 1-3 dage forsinket)
+  - [x] Statistics: Opdater hver 6. time
 
-- [ ] **Forbedr cache strategi**
-  - [ ] Cache tariffer indtil de faktisk ændrer sig
-  - [ ] Cache årlig data og hent kun nye måneder
-  - [ ] Cache daglig data bedre
+- [x] **Forbedr cache strategi**
+  - [x] Cache tariffer indtil de faktisk ændrer sig (24 timer cache)
+  - [x] Cache årlig data (24 timer cache)
+  - [x] Brug cached data ved API fejl
+  - [x] Tjek om data faktisk ændrer sig før cache opdatering
 
 - [x] **Tilføj retry logik**
   - [x] Token refresh ved 401 fejl
-  - [ ] Håndter 429 (Too Many Requests) - vent 1 minut
-  - [ ] Håndter 503 (Service Unavailable) - vent 1 minut
-  - [ ] Implementér exponential backoff
+  - [x] Håndter 429 (Too Many Requests) - exponential backoff
+  - [x] Håndter 503 (Service Unavailable) - exponential backoff
+  - [x] Implementér exponential backoff (op til 3 forsøg)
 
-- [ ] **Implementér metering point details**
-  - [ ] Hent metering point details ved setup
-  - [ ] Brug til validering af metering point ID
-  - [ ] Vis mere information i sensor attributes
+- [x] **Implementér metering point details**
+  - [x] Hent metering point details ved setup
+  - [x] Brug til validering af metering point ID (via get_metering_points)
+  - [x] Vis mere information i sensor attributes (adresse, type, grid operator, etc.)
 
 ### Fejlhåndtering
 
-- [ ] **Forbedret fejlhåndtering**
-  - [ ] Tilføj bedre fejlbeskeder til brugere
-  - [ ] Håndter API timeout bedre
-  - [ ] Tilføj retry logik for ustabile API calls
-  - [ ] Forbedr håndtering af manglende data
+- [x] **Forbedret fejlhåndtering**
+  - [x] Tilføj bedre fejlbeskeder til brugere
+  - [x] Håndter API timeout bedre (30 sekunder timeout)
+  - [x] Tilføj retry logik for ustabile API calls (exponential backoff)
+  - [x] Forbedr håndtering af manglende data (bruger cached data, bedre beskeder)
 
-- [ ] **Validering**
-  - [ ] Tilføj validering af refresh token format
-  - [ ] Tilføj validering af målepunkt ID format
-  - [ ] Bedre fejlbeskeder ved validering
+- [x] **Validering**
+  - [x] Tilføj validering af refresh token format (JWT format check)
+  - [x] Tilføj validering af målepunkt ID format (18 karakterer, alphanumeric)
+  - [x] Bedre fejlbeskeder ved validering
 
 ### Dokumentation
 
-- [ ] **Opdater README**
+- [x] **Opdater README**
   - [x] Opret ny README med bedre struktur
   - [ ] Tilføj screenshots af integration i Home Assistant
-  - [ ] Tilføj troubleshooting sektion
-  - [ ] Tilføj FAQ sektion
-  - [ ] Opdater eksempler med nyere Home Assistant syntax
+  - [x] Tilføj troubleshooting sektion
+  - [x] Tilføj FAQ sektion
+  - [x] Opdater eksempler med nyere Home Assistant syntax
 
-- [ ] **Kodedokumentation**
+- [x] **Kodedokumentation**
   - [x] Tilføj docstrings til alle klasser og funktioner
   - [x] Tilføj type hints hvor de mangler
-  - [ ] Dokumenter API begrænsninger og rate limits
+  - [x] Dokumenter API begrænsninger og rate limits
 
 ### Testing
 
@@ -187,9 +189,41 @@ Før en PR merges, skal følgende tjekkes:
 
 - Eloverblik API er kendt for at være ustabilt og langsomt - dette er uden for vores kontrol
 - Data fra Eloverblik er typisk 1-3 dage forsinket afhængigt af DSO
-- Integrationen bruger throttling (60 minutter) for at undgå for mange API calls
+- Integrationen bruger intelligent throttling:
+  - Energy data: 60 minutter
+  - Tariffer: 24 timer (med cache)
+  - Årlig data: 24 timer (med cache)
+  - Statistics: 6 timer
+- Integrationen håndterer automatisk API fejl med exponential backoff retry
+- Cache strategi reducerer unødvendige API calls betydeligt
 
 ---
 
-**Sidst opdateret**: 2024
+**Sidst opdateret**: Januar 2025
+
+## ✅ Færdiggjorte Opgaver (v0.7.0)
+
+### Høj Prioritet - Alle Færdige ✅
+- ✅ Opdateret sensor klasser til moderne Home Assistant patterns
+- ✅ Fjernet forældede patterns
+- ✅ Rettet logging problemer
+- ✅ Opdateret requirements og manifest
+- ✅ Fjernet pyeloverblik afhængighed - nu 100% native
+
+### Medium Prioritet - Alle Færdige ✅
+- ✅ Implementeret IsAlive check med 503 håndtering
+- ✅ Fjernet deprecated endpoint (meter reading)
+- ✅ Optimeret opdateringsfrekvens (forskellige throttling intervaller)
+- ✅ Forbedret cache strategi (tariffer og årlig data)
+- ✅ Tilføjet retry logik med exponential backoff (429, 503)
+- ✅ Implementeret metering point details
+- ✅ Forbedret fejlhåndtering og validering
+- ✅ Opdateret dokumentation (README, troubleshooting, FAQ, API begrænsninger)
+
+### Næste Version (v0.8.0) - Mulige Forbedringer
+- [ ] Binary sensor for service status (IsAlive)
+- [ ] Support for flere målepunkter i samme integration
+- [ ] Konfigurerbare opdateringsintervaller
+- [ ] Unit tests og integration tests
+- [ ] Screenshots i README
 

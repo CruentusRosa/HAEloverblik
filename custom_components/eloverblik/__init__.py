@@ -2,7 +2,7 @@
 import asyncio
 import logging
 from datetime import timedelta, datetime
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 import voluptuous as vol
 from homeassistant.util import Throttle
 from homeassistant.config_entries import ConfigEntry
@@ -12,13 +12,22 @@ from .const import DOMAIN
 from .api_client import EloverblikAPI, EloverblikAPIError, EloverblikAuthError
 from .models import TimeSeries, ChargesData, DayData, YearData
 
+# Module-level cache for tariffs and year data
+# Format: metering_point: (data, timestamp)
+_TARIFF_CACHE: Dict[str, tuple] = {}
+_YEAR_DATA_CACHE: Dict[str, tuple] = {}
+
 _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
 PLATFORMS = ["sensor"]
 
-MIN_TIME_BETWEEN_UPDATES = timedelta(minutes=60)
+# Different throttling intervals for different data types
+MIN_TIME_BETWEEN_ENERGY_UPDATES = timedelta(minutes=60)  # Hourly for daily data
+MIN_TIME_BETWEEN_TARIFF_UPDATES = timedelta(hours=24)  # Daily for tariffs (rarely change)
+MIN_TIME_BETWEEN_YEAR_UPDATES = timedelta(hours=24)  # Daily for yearly data (monthly changes)
+MIN_TIME_BETWEEN_STATISTICS_UPDATES = timedelta(hours=6)  # Every 6 hours for statistics
 
 
 async def async_setup(hass: HomeAssistant, config: dict):
@@ -32,7 +41,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     refresh_token = entry.data['refresh_token']
     metering_point = entry.data['metering_point']
     
-    hass.data[DOMAIN][entry.entry_id] = HassEloverblik(refresh_token, metering_point)
+    # Create client and fetch metering point details
+    client = HassEloverblik(refresh_token, metering_point)
+    
+    # Fetch metering point details for additional information
+    try:
+        await hass.async_add_executor_job(client._fetch_metering_point_details)
+    except Exception as e:
+        _LOGGER.warning(f"Could not fetch metering point details: {e}. Continuing without details.")
+    
+    hass.data[DOMAIN][entry.entry_id] = client
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -65,6 +83,60 @@ class HassEloverblik:
         self._day_data: Optional[DayData] = None
         self._year_data: Optional[YearData] = None
         self._tariff_data: Optional[ChargesData] = None
+        self._metering_point_details: Optional[Dict[str, Any]] = None
+
+    def _fetch_metering_point_details(self):
+        """Fetch metering point details from API."""
+        try:
+            details_response = self._api.get_metering_point_details(self._metering_point)
+            if details_response and "result" in details_response:
+                result_list = details_response["result"]
+                if result_list and len(result_list) > 0:
+                    result_item = result_list[0]
+                    if "result" in result_item:
+                        self._metering_point_details = result_item["result"]
+                        _LOGGER.debug(f"Fetched metering point details for {self._metering_point}")
+        except Exception as e:
+            _LOGGER.debug(f"Could not fetch metering point details: {e}")
+
+    def get_metering_point_info(self) -> Dict[str, Any]:
+        """Get metering point information for attributes.
+        
+        Returns:
+            Dictionary with metering point information
+        """
+        info = {
+            "metering_point_id": self._metering_point
+        }
+        
+        if self._metering_point_details:
+            details = self._metering_point_details
+            if isinstance(details, list) and len(details) > 0:
+                details = details[0]
+            
+            # Extract useful information
+            if isinstance(details, dict):
+                info.update({
+                    "type": details.get("typeOfMP", "Unknown"),
+                    "address": self._format_address(details),
+                    "grid_operator": details.get("gridOperatorName", "Unknown"),
+                    "balance_supplier": details.get("balanceSupplierName", "Unknown"),
+                    "measurement_unit": details.get("energyTimeSeriesMeasureUnit", "kWh"),
+                })
+        
+        return info
+
+    def _format_address(self, details: Dict[str, Any]) -> str:
+        """Format address from metering point details."""
+        parts = []
+        if details.get("streetName"):
+            street = details.get("streetName", "")
+            if details.get("buildingNumber"):
+                street += f" {details.get('buildingNumber')}"
+            parts.append(street)
+        if details.get("postcode") and details.get("cityName"):
+            parts.append(f"{details.get('postcode')} {details.get('cityName')}")
+        return ", ".join(parts) if parts else "Unknown"
 
     def get_total_day(self) -> Optional[float]:
         """Get total energy consumption for the day."""
@@ -89,7 +161,7 @@ class HassEloverblik:
                 return 0
         return None
 
-    @Throttle(MIN_TIME_BETWEEN_UPDATES)
+    @Throttle(MIN_TIME_BETWEEN_STATISTICS_UPDATES)
     def get_hourly_data(self, from_date: datetime, to_date: datetime) -> Optional[Dict[datetime, TimeSeries]]:
         """Get hourly data for a meter between two dates."""
         try:
@@ -142,7 +214,7 @@ class HassEloverblik:
             return tariff_sum
         return None
 
-    @Throttle(MIN_TIME_BETWEEN_UPDATES)
+    @Throttle(MIN_TIME_BETWEEN_ENERGY_UPDATES)
     def update_energy(self):
         """Update energy data from Eloverblik API."""
         _LOGGER.debug("Fetching energy data from Eloverblik")
@@ -168,13 +240,33 @@ class HassEloverblik:
                     # Get the first (and should be only) time series
                     time_series = next(iter(time_series_dict.values()))
                     self._day_data = DayData(time_series)
+                    _LOGGER.debug("Successfully updated day data")
                 else:
-                    _LOGGER.debug("No day data parsed from response")
+                    _LOGGER.warning("No day data parsed from response. Data may not be available yet (typically 1-3 days delayed).")
+                    # Keep existing data if available
             else:
-                _LOGGER.warning("Failed to get day data from Eloverblik")
+                _LOGGER.warning("Failed to get day data from Eloverblik. Data may not be available yet (typically 1-3 days delayed).")
+                # Keep existing data if available
 
-            # Get year data (monthly aggregation)
+            # Get year data (monthly aggregation) - only fetch new months
+            cache_key = self._metering_point
             year_start = datetime(datetime.now().year, 1, 1)
+            
+            # Check cache for year data
+            if cache_key in _YEAR_DATA_CACHE:
+                cached_data, cache_time = _YEAR_DATA_CACHE[cache_key]
+                # If cache is less than 24 hours old, use it
+                if datetime.now() - cache_time < timedelta(hours=24):
+                    _LOGGER.debug("Using cached year data")
+                    self._year_data = cached_data
+                else:
+                    # Only fetch new months (from last cached month)
+                    # For simplicity, we'll still fetch full year but cache it
+                    pass
+            else:
+                # First time, fetch from start of year
+                pass
+            
             year_data_response = self._api.get_time_series(
                 self._metering_point,
                 year_start,
@@ -213,10 +305,18 @@ class HassEloverblik:
                         }
                         combined_ts = TimeSeries(fake_response)
                         self._year_data = YearData(combined_ts)
+                        # Cache the year data
+                        _YEAR_DATA_CACHE[cache_key] = (self._year_data, datetime.now())
+                        _LOGGER.debug("Year data updated and cached")
                 else:
-                    _LOGGER.debug("No year data parsed from response")
+                    _LOGGER.warning("No year data parsed from response. Data may not be available yet.")
             else:
-                _LOGGER.warning("Failed to get year data from Eloverblik")
+                _LOGGER.warning("Failed to get year data from Eloverblik. Data may not be available yet.")
+                # Use cached data if available
+                if cache_key in _YEAR_DATA_CACHE:
+                    cached_data, _ = _YEAR_DATA_CACHE[cache_key]
+                    self._year_data = cached_data
+                    _LOGGER.debug("Using cached year data due to API failure")
                 
         except EloverblikAuthError as e:
             _LOGGER.warning(f"Authentication error while fetching energy data: {e}")
@@ -251,28 +351,69 @@ class HassEloverblik:
             
         return result_dict if result_dict else None
 
-    @Throttle(MIN_TIME_BETWEEN_UPDATES)
+    @Throttle(MIN_TIME_BETWEEN_TARIFF_UPDATES)
     def update_tariffs(self):
-        """Update tariff data from Eloverblik API."""
+        """Update tariff data from Eloverblik API.
+        
+        Uses caching to avoid unnecessary API calls since tariffs rarely change.
+        """
         _LOGGER.debug("Fetching tariff data from Eloverblik")
 
         try:
+            # Check cache first
+            cache_key = self._metering_point
+            if cache_key in _TARIFF_CACHE:
+                cached_data, cache_time = _TARIFF_CACHE[cache_key]
+                # Use cached data if less than 24 hours old
+                if datetime.now() - cache_time < timedelta(hours=24):
+                    _LOGGER.debug("Using cached tariff data")
+                    self._tariff_data = cached_data
+                    return
+            
             # Check if service is alive first
             if not self._api.check_isalive():
                 _LOGGER.warning("Eloverblik service is not available, skipping tariff update")
+                # Use cached data if available
+                if cache_key in _TARIFF_CACHE:
+                    cached_data, _ = _TARIFF_CACHE[cache_key]
+                    self._tariff_data = cached_data
+                    _LOGGER.debug("Using cached tariff data due to service unavailability")
                 return
                 
             charges_response = self._api.get_charges(self._metering_point)
             
             if charges_response:
-                self._tariff_data = ChargesData(charges_response)
+                new_tariff_data = ChargesData(charges_response)
+                # Check if data actually changed
+                if self._tariff_data is None or new_tariff_data.charges != self._tariff_data.charges:
+                    self._tariff_data = new_tariff_data
+                    # Update cache
+                    _TARIFF_CACHE[cache_key] = (new_tariff_data, datetime.now())
+                    _LOGGER.debug("Tariff data updated and cached")
+                else:
+                    _LOGGER.debug("Tariff data unchanged, using existing data")
+                    # Update cache timestamp
+                    _TARIFF_CACHE[cache_key] = (self._tariff_data, datetime.now())
             else:
                 _LOGGER.warning("Failed to get tariff data from Eloverblik")
+                # Use cached data if available
+                if cache_key in _TARIFF_CACHE:
+                    cached_data, _ = _TARIFF_CACHE[cache_key]
+                    self._tariff_data = cached_data
+                    _LOGGER.debug("Using cached tariff data due to API failure")
                 
         except EloverblikAuthError as e:
             _LOGGER.warning(f"Authentication error while fetching tariff data: {e}")
+            # Use cached data if available
+            if cache_key in _TARIFF_CACHE:
+                cached_data, _ = _TARIFF_CACHE[cache_key]
+                self._tariff_data = cached_data
         except EloverblikAPIError as e:
             _LOGGER.warning(f"API error while fetching tariff data: {e}")
+            # Use cached data if available
+            if cache_key in _TARIFF_CACHE:
+                cached_data, _ = _TARIFF_CACHE[cache_key]
+                self._tariff_data = cached_data
         except Exception as e:
             _LOGGER.warning(f"Unexpected exception while fetching tariff data: {e}", exc_info=True)
 

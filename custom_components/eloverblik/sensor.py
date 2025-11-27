@@ -1,5 +1,6 @@
 """Platform for Eloverblik sensor integration."""
 from datetime import datetime, timedelta
+from typing import Optional
 import logging
 import pytz
 from homeassistant.const import UnitOfEnergy
@@ -21,7 +22,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.util import Throttle
-from .__init__ import HassEloverblik, MIN_TIME_BETWEEN_UPDATES
+from .__init__ import HassEloverblik, MIN_TIME_BETWEEN_STATISTICS_UPDATES
 from .const import DOMAIN, CURRENCY_KRONER_PER_KILO_WATT_HOUR
 from .models import TimeSeries
 
@@ -83,6 +84,11 @@ class EloverblikEnergy(SensorEntity):
             'Metering date': self._data_date,
             'metering_date': self._data_date
         }
+        
+        # Add metering point information
+        mp_info = self._data.get_metering_point_info()
+        attributes.update(mp_info)
+        
         return attributes
 
     async def async_update(self):
@@ -144,50 +150,91 @@ class EloverblikTariff(SensorEntity):
 
 class EloverblikStatistic(SensorEntity):
     """This class handles the total energy of the meter,
-    and imports it as long term statistics from Eloverblik."""
+    and imports it as long term statistics from Eloverblik.
+    
+    This sensor provides cumulative energy consumption data that can be used
+    in Home Assistant's Energy Dashboard and for creating energy consumption curves.
+    The data is automatically imported into long-term statistics for historical tracking.
+    """
 
     _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
     _attr_device_class = SensorDeviceClass.ENERGY
-    _attr_state_class = SensorStateClass.TOTAL
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
 
     def __init__(self, hass_eloverblik: HassEloverblik):
         self._attr_name = "Eloverblik Energy Statistic"
         self._attr_unique_id = f"{hass_eloverblik.get_metering_point()}-statistic"
         self._hass_eloverblik = hass_eloverblik
+        self._last_total: Optional[float] = None
 
     async def async_will_remove_from_hass(self) -> None:
         """Cleanup callback to remove statistics when deleting entity"""
         await get_instance(self.hass).async_clear_statistics([self.entity_id])
 
-    @Throttle(MIN_TIME_BETWEEN_UPDATES)
-    async def async_update(self):
-        """Continually update history"""
+    @Throttle(MIN_TIME_BETWEEN_STATISTICS_UPDATES)  # Update every 6 hours
+    async def _async_update_statistics(self):
+        """Continually update history with improved frequency"""
         last_stat = await self._get_last_stat(self.hass)
 
-        if last_stat is not None and pytz.utc.localize(datetime.now()) - pytz.utc.localize(datetime.utcfromtimestamp(last_stat["start"])) < timedelta(days=1):
-            # If less than 1 day since last record, don't pull new data.
-            # Data is available at the earliest a day after.
-            return
+        if last_stat is not None:
+            # Check if we need to update - data is typically 1-3 days delayed
+            # Update if more than 6 hours since last update
+            last_update_time = pytz.utc.localize(datetime.utcfromtimestamp(last_stat["start"]))
+            time_since_update = pytz.utc.localize(datetime.now()) - last_update_time
+            
+            if time_since_update < timedelta(hours=6):
+                # Don't update too frequently - data is delayed anyway
+                return
 
         self.hass.async_create_task(self._update_data(last_stat))
+    
+    async def async_update(self):
+        """Update the sensor - triggers statistics update if needed."""
+        # Call the throttled statistics update (will only run if throttling allows)
+        await self._async_update_statistics()
+        
+        # Always update sensor value from last statistic for real-time display
+        last_stat = await self._get_last_stat(self.hass)
+        if last_stat is not None:
+            self._last_total = last_stat["sum"]
+            self._attr_native_value = self._last_total
+        elif self._last_total is not None:
+            # Keep showing last known value if statistics exist but query failed
+            self._attr_native_value = self._last_total
 
     async def _update_data(self, last_stat: StatisticData):
+        """Update statistics data from Eloverblik.
+        
+        Fetches data from the last recorded point up to now (minus 2 days delay).
+        """
         if last_stat is None:
-            # if none import from last january
-            from_date = datetime(datetime.today().year-1, 1, 1)
+            # If no previous data, import from start of last year
+            from_date = datetime(datetime.today().year - 1, 1, 1)
         else:
-            # Next day at noon (eloverblik.py will strip time)
-            from_date = pytz.utc.localize(datetime.utcfromtimestamp(last_stat["start"]) + timedelta(hours=13))
+            # Start from the hour after the last recorded statistic
+            # Add 1 hour to avoid duplicates
+            from_date = pytz.utc.localize(datetime.utcfromtimestamp(last_stat["start"])) + timedelta(hours=1)
 
+        # Data is typically 1-3 days delayed, so only fetch up to 2 days ago
+        to_date = datetime.now() - timedelta(days=2)
+        
+        # Don't fetch if from_date is too recent
+        if from_date >= to_date:
+            _LOGGER.debug("No new data available yet (data is delayed by 1-3 days)")
+            return
+
+        _LOGGER.debug(f"Fetching hourly data from {from_date} to {to_date}")
+        
         data = await self.hass.async_add_executor_job(
             self._hass_eloverblik.get_hourly_data,
             from_date,
-            datetime.now())
+            to_date)
 
-        if data is not None:
+        if data is not None and len(data) > 0:
             await self._insert_statistics(data, last_stat)
+            _LOGGER.info(f"Imported {len(data)} time series periods to statistics")
         else:
-            _LOGGER.debug("None data was returned from Eloverblik")
+            _LOGGER.debug("No data was returned from Eloverblik")
 
     async def _insert_statistics(
         self,
@@ -233,6 +280,10 @@ class EloverblikStatistic(SensorEntity):
 
         if len(statistics) > 0:
             async_import_statistics(self.hass, metadata, statistics)
+            # Update sensor value to latest total for real-time display
+            if statistics:
+                self._last_total = statistics[-1]["sum"]
+                self._attr_native_value = self._last_total
 
     async def _get_last_stat(self, hass: HomeAssistant) -> StatisticData:
         last_stats = await get_instance(hass).async_add_executor_job(

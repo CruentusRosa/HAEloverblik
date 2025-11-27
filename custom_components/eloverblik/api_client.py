@@ -1,5 +1,6 @@
 """Native Eloverblik API client."""
 import logging
+import time
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 import requests
@@ -109,6 +110,10 @@ class EloverblikAPI:
             "Content-Type": "application/json"
         }
         
+        max_retries = 3
+        retry_delay = 1  # Start with 1 second
+        
+        for attempt in range(max_retries):
         try:
             response = requests.request(
                 method=method,
@@ -116,32 +121,53 @@ class EloverblikAPI:
                 headers=headers,
                 json=data,
                 params=params,
-                timeout=30
+                timeout=30  # 30 second timeout for API calls
             )
-            response.raise_for_status()
-            return response
-        except HTTPError as e:
-            if e.response.status_code == 401:
-                # Token might be expired, try refreshing once
-                self._access_token = None
-                access_token = self._get_access_token()
-                headers["Authorization"] = f"Bearer {access_token}"
-                try:
-                    response = requests.request(
-                        method=method,
-                        url=url,
-                        headers=headers,
-                        json=data,
-                        params=params,
-                        timeout=30
-                    )
-                    response.raise_for_status()
-                    return response
-                except HTTPError:
+                response.raise_for_status()
+                return response
+            except HTTPError as e:
+                status_code = e.response.status_code
+                
+                # Handle 401 - token might be expired, try refreshing once
+                if status_code == 401:
+                    if attempt == 0:  # Only retry once for 401
+                        self._access_token = None
+                        access_token = self._get_access_token()
+                        headers["Authorization"] = f"Bearer {access_token}"
+                        continue
                     raise EloverblikAuthError("Authentication failed") from e
-            raise EloverblikAPIError(f"API request failed: {e}") from e
-        except RequestException as e:
-            raise EloverblikAPIError(f"Request error: {e}") from e
+                
+                # Handle 429 - Too Many Requests
+                elif status_code == 429:
+                    if attempt < max_retries - 1:
+                        wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                        _LOGGER.warning(f"Rate limited (429). Waiting {wait_time} seconds before retry {attempt + 1}/{max_retries}")
+                        time.sleep(wait_time)
+                        continue
+                    raise EloverblikAPIError("Rate limit exceeded. Please try again later.") from e
+                
+                # Handle 503 - Service Unavailable
+                elif status_code == 503:
+                    if attempt < max_retries - 1:
+                        wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                        _LOGGER.warning(f"Service unavailable (503). Waiting {wait_time} seconds before retry {attempt + 1}/{max_retries}")
+                        time.sleep(wait_time)
+                        continue
+                    raise EloverblikAPIError("Service is temporarily unavailable. Please try again later.") from e
+                
+                # Other HTTP errors
+                raise EloverblikAPIError(f"API request failed with status {status_code}: {e}") from e
+                
+            except RequestException as e:
+                if attempt < max_retries - 1:
+                    wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                    _LOGGER.warning(f"Request error: {e}. Retrying in {wait_time} seconds ({attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                raise EloverblikAPIError(f"Request error after {max_retries} attempts: {e}") from e
+        
+        # Should never reach here, but just in case
+        raise EloverblikAPIError(f"Request failed after {max_retries} attempts")
 
     def check_isalive(self) -> bool:
         """Check if Eloverblik API service is available.
@@ -158,6 +184,13 @@ class EloverblikAPI:
             if response.status_code == 200:
                 result = response.json()
                 return result if isinstance(result, bool) else True
+            elif response.status_code == 503:
+                # Service is overloaded or down
+                _LOGGER.warning("Eloverblik service is unavailable (503). Service may be overloaded or down.")
+                return False
+            return False
+        except requests.exceptions.RequestException as e:
+            _LOGGER.debug(f"IsAlive check failed: {e}")
             return False
         except Exception as e:
             _LOGGER.debug(f"IsAlive check failed: {e}")
