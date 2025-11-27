@@ -69,11 +69,13 @@ For at bruge integrationen skal du have et refresh token fra [eloverblik.dk](htt
 
 1. Gå til **Settings** → **Devices & Services** → **Add Integration**.
 2. Søg efter **Eloverblik**.
-3. Indtast dit **Refresh Token**.
-4. Integrationen henter automatisk dine tilgængelige målepunkter.
-5. Vælg det målepunkt du vil overvåge fra dropdown listen.
+3. **Step 1**: Indtast kun dit **Refresh Token** (ikke målepunkt ID).
+4. **Step 2**: Integrationen henter automatisk dine tilgængelige målepunkter. Vælg det målepunkt du vil overvåge fra dropdown listen.
 
-> **Bemærk**: Integrationen henter automatisk alle dine målepunkter fra Eloverblik API, så du ikke behøver at kende målepunkt ID'et på forhånd.
+> **Bemærk**: 
+> - Integrationen henter automatisk alle dine målepunkter fra Eloverblik API, så du ikke behøver at kende målepunkt ID'et på forhånd.
+> - Hvis du ser et målepunkt ID felt i første step, skal du genstarte Home Assistant for at rydde cache.
+> - Hvis du har en eksisterende integration fra version 1, skal du måske slette den og oprette en ny for at få den nye 2-step konfiguration.
 
 ## 📊 Sensorer og Attributter
 
@@ -207,6 +209,15 @@ Du kan også ændre logniveauet gennem UI via service calls.
 
 - **Sørg for at målepunktet er linket**: Gå til Eloverblik portalen og sørg for at målepunktet er linket til din konto.
 - **Brug automatisk detection**: Integrationen henter automatisk alle dine målepunkter - vælg fra listen i stedet for at indtaste manuelt.
+
+### Integrationen viser stadig målepunkt ID felt i første step
+
+Hvis du stadig ser et målepunkt ID felt i første step (i stedet for kun refresh token):
+
+- **Genstart Home Assistant**: Home Assistant cacher config flows. Genstart for at rydde cache (som du lige har gjort!).
+- **Slet eksisterende integration**: Hvis du har en gammel integration fra version 1, slet den og opret en ny.
+- **Tjek version**: Sørg for at du har version 0.7.0 eller nyere installeret.
+- **Efter genstart**: Gå til Settings → Devices & Services → Add Integration → Eloverblik. Du skulle nu kun se "Refresh Token" feltet i første step.
 
 ## ❓ FAQ
 
