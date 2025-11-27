@@ -63,7 +63,7 @@ def validate_metering_point_id(mp_id: str) -> bool:
 async def validate_input(hass: core.HomeAssistant, data: Dict[str, Any]):
     """Validate the user input allows us to connect.
 
-    Data has the keys from DATA_SCHEMA with values provided by the user.
+    Data should have refresh_token and optionally metering_point.
     """
     token = data["refresh_token"]
     metering_point = data.get("metering_point")
@@ -103,42 +103,74 @@ async def validate_input(hass: core.HomeAssistant, data: Dict[str, Any]):
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Eloverblik."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self):
         """Initialize config flow."""
+        super().__init__()
         self._metering_points: Optional[list] = None
         self._refresh_token: Optional[str] = None
+    
+    async def async_step_import(self, user_input=None):
+        """Handle import from configuration.yaml (legacy)."""
+        # This handles old config entries that might have metering_point in first step
+        if user_input and "metering_point" in user_input:
+            # Old format - migrate to new format
+            self._refresh_token = user_input.get("refresh_token")
+            metering_point = user_input.get("metering_point")
+            
+            if self._refresh_token and metering_point:
+                # Validate and create entry
+                try:
+                    info = await validate_input(self.hass, user_input)
+                    await self.async_set_unique_id(metering_point)
+                    self._abort_if_unique_id_configured()
+                    
+                    return self.async_create_entry(
+                        title=info["title"],
+                        data=user_input
+                    )
+                except Exception:
+                    return self.async_abort(reason="import_failed")
+        
+        return await self.async_step_user(user_input)
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
         errors = {}
         
         if user_input is not None:
-            self._refresh_token = user_input["refresh_token"]
+            self._refresh_token = user_input.get("refresh_token")
             
-            try:
-                api = EloverblikAPI(self._refresh_token)
-                # Get metering points
-                self._metering_points = await self.hass.async_add_executor_job(
-                    api.get_metering_points, False
-                )
-                
-                if self._metering_points is None:
-                    errors["base"] = "cannot_connect"
-                elif not self._metering_points:
-                    errors["base"] = "no_metering_points"
-                else:
-                    # Move to metering point selection step
-                    return await self.async_step_metering_point()
-                    
-            except EloverblikAuthError:
+            if not self._refresh_token:
                 errors["base"] = "invalid_auth"
-            except EloverblikAPIError:
-                errors["base"] = "cannot_connect"
-            except Exception:  # pylint: disable=broad-except
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
+            else:
+                try:
+                    # Validate token format first
+                    if not validate_refresh_token(self._refresh_token):
+                        errors["base"] = "invalid_auth"
+                    else:
+                        api = EloverblikAPI(self._refresh_token)
+                        # Get metering points
+                        self._metering_points = await self.hass.async_add_executor_job(
+                            api.get_metering_points, False
+                        )
+                        
+                        if self._metering_points is None:
+                            errors["base"] = "cannot_connect"
+                        elif not self._metering_points:
+                            errors["base"] = "no_metering_points"
+                        else:
+                            # Move to metering point selection step
+                            return await self.async_step_metering_point()
+                            
+                except EloverblikAuthError:
+                    errors["base"] = "invalid_auth"
+                except EloverblikAPIError:
+                    errors["base"] = "cannot_connect"
+                except Exception:  # pylint: disable=broad-except
+                    _LOGGER.exception("Unexpected exception")
+                    errors["base"] = "unknown"
 
         return self.async_show_form(
             step_id="user", data_schema=INITIAL_SCHEMA, errors=errors
@@ -227,10 +259,3 @@ class NoMeteringPoints(exceptions.HomeAssistantError):
 
 class InvalidMeteringPoint(exceptions.HomeAssistantError):
     """Error to indicate invalid metering point."""
-
-class CannotConnect(exceptions.HomeAssistantError):
-    """Error to indicate we cannot connect."""
-
-
-class InvalidAuth(exceptions.HomeAssistantError):
-    """Error to indicate there is invalid auth."""
