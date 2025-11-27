@@ -36,17 +36,6 @@ async def async_setup(hass: HomeAssistant, config: dict):
     return True
 
 
-async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
-    """Migrate old config entries to new format."""
-    if config_entry.version == 1:
-        # Old format had both refresh_token and metering_point in data
-        # New format is the same, but config flow is different
-        # Just update version
-        new_data = {**config_entry.data}
-        hass.config_entries.async_update_entry(config_entry, data=new_data, version=2)
-        _LOGGER.info("Migrated Eloverblik config entry from version 1 to 2")
-    return True
-
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up Eloverblik from a config entry."""
     refresh_token = entry.data.get('refresh_token')

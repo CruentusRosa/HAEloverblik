@@ -104,6 +104,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Eloverblik."""
 
     VERSION = 2
+    
+    async def async_step_reauth(self, user_input=None):
+        """Handle reauth flow."""
+        return await self.async_step_user(user_input)
 
     def __init__(self):
         """Initialize config flow."""
