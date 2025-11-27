@@ -30,16 +30,26 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry, async_add_entities):
     """Set up the sensor platform."""
-    eloverblik = hass.data[DOMAIN][config.entry_id]
+    eloverblik_clients = hass.data[DOMAIN][config.entry_id]
+    
+    # Support legacy single client format
+    if not isinstance(eloverblik_clients, dict):
+        eloverblik_clients = {eloverblik_clients.get_metering_point(): eloverblik_clients}
 
     sensors = []
-    sensors.append(EloverblikEnergy("Eloverblik Energy Total", 'total', eloverblik))
-    sensors.append(EloverblikEnergy("Eloverblik Energy Total (Year)", 'year_total', eloverblik))
-    # Meter reading sensor removed - endpoint is deprecated
-    for hour in range(1, 25):
-        sensors.append(EloverblikEnergy(f"Eloverblik Energy {hour-1}-{hour}", 'hour', eloverblik, hour))
-    sensors.append(EloverblikTariff("Eloverblik Tariff Sum", eloverblik))
-    sensors.append(EloverblikStatistic(eloverblik))
+    
+    # Create sensors for each metering point
+    for metering_point, eloverblik in eloverblik_clients.items():
+        # Add metering point suffix to sensor names if multiple points
+        suffix = f" {metering_point}" if len(eloverblik_clients) > 1 else ""
+        
+        sensors.append(EloverblikEnergy(f"Eloverblik Energy Total{suffix}", 'total', eloverblik))
+        sensors.append(EloverblikEnergy(f"Eloverblik Energy Total (Year){suffix}", 'year_total', eloverblik))
+        # Meter reading sensor removed - endpoint is deprecated
+        for hour in range(1, 25):
+            sensors.append(EloverblikEnergy(f"Eloverblik Energy {hour-1}-{hour}{suffix}", 'hour', eloverblik, hour))
+        sensors.append(EloverblikTariff(f"Eloverblik Tariff Sum{suffix}", eloverblik))
+        sensors.append(EloverblikStatistic(eloverblik, suffix))
 
     async_add_entities(sensors)
 
@@ -161,8 +171,8 @@ class EloverblikStatistic(SensorEntity):
     _attr_device_class = SensorDeviceClass.ENERGY
     _attr_state_class = SensorStateClass.TOTAL_INCREASING
 
-    def __init__(self, hass_eloverblik: HassEloverblik):
-        self._attr_name = "Eloverblik Energy Statistic"
+    def __init__(self, hass_eloverblik: HassEloverblik, suffix: str = ""):
+        self._attr_name = f"Eloverblik Energy Statistic{suffix}"
         self._attr_unique_id = f"{hass_eloverblik.get_metering_point()}-statistic"
         self._hass_eloverblik = hass_eloverblik
         self._last_total: Optional[float] = None

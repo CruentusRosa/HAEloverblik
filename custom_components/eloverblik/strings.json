@@ -3,16 +3,9 @@
     "step": {
       "user": {
         "title": "Eloverblik",
-        "description": "Enter your refresh token from eloverblik.dk",
+        "description": "Enter your refresh token from eloverblik.dk. Integrationen vil automatisk oprette sensorer for alle dine målepunkter.",
         "data": {
           "refresh_token": "Refresh Token"
-        }
-      },
-      "metering_point": {
-        "title": "Select Metering Point",
-        "description": "Select the metering point you want to monitor. Found {count} metering point(s).",
-        "data": {
-          "metering_point": "Metering Point"
         }
       }
     },

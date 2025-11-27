@@ -60,56 +60,12 @@ def validate_metering_point_id(mp_id: str) -> bool:
     
     return True
 
-async def validate_input(hass: core.HomeAssistant, data: Dict[str, Any]):
-    """Validate the user input allows us to connect.
-
-    Data should have refresh_token and optionally metering_point.
-    """
-    token = data["refresh_token"]
-    metering_point = data.get("metering_point")
-
-    # Validate refresh token format
-    if not validate_refresh_token(token):
-        raise InvalidAuth("Invalid refresh token format. Please check your token from eloverblik.dk")
-
-    # Validate metering point format if provided
-    if metering_point and not validate_metering_point_id(metering_point):
-        raise InvalidMeteringPoint("Invalid metering point ID format. Must be 18 alphanumeric characters.")
-
-    api = EloverblikAPI(token)
-
-    try:
-        # Validate token by getting metering points
-        metering_points = await hass.async_add_executor_job(api.get_metering_points, False)
-        if metering_points is None:
-            raise CannotConnect("Failed to retrieve metering points. Please check your internet connection and try again.")
-        
-        if not metering_points:
-            raise NoMeteringPoints("No metering points found. Please ensure you have linked metering points in the Eloverblik portal.")
-        
-        # If metering point is specified, validate it exists
-        if metering_point:
-            valid_ids = [mp.get("meteringPointId") for mp in metering_points if mp.get("meteringPointId")]
-            if metering_point not in valid_ids:
-                raise InvalidMeteringPoint(f"Metering point {metering_point} not found in your account. Please select from the list.")
-        
-        return {"title": f"Eloverblik {metering_point}" if metering_point else "Eloverblik"}
-    except EloverblikAuthError as error:
-        raise InvalidAuth("Invalid or expired refresh token. Please generate a new token from eloverblik.dk") from error
-    except EloverblikAPIError as error:
-        raise CannotConnect(f"Unable to connect to Eloverblik API: {error}") from error
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Eloverblik."""
 
-    VERSION = 2
-
-    def __init__(self):
-        """Initialize config flow."""
-        super().__init__()
-        self._metering_points: Optional[list] = None
-        self._refresh_token: Optional[str] = None
+    VERSION = 3
     
     async def async_step_reauth(self, user_input=None):
         """Handle reauth flow."""
@@ -120,22 +76,21 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # This handles old config entries that might have metering_point in first step
         if user_input and "metering_point" in user_input:
             # Old format - migrate to new format
-            self._refresh_token = user_input.get("refresh_token")
+            refresh_token = user_input.get("refresh_token")
             metering_point = user_input.get("metering_point")
             
-            if self._refresh_token and metering_point:
-                # Validate and create entry
-                try:
-                    info = await validate_input(self.hass, user_input)
-                    await self.async_set_unique_id(metering_point)
-                    self._abort_if_unique_id_configured()
-                    
-                    return self.async_create_entry(
-                        title=info["title"],
-                        data=user_input
-                    )
-                except Exception:
-                    return self.async_abort(reason="import_failed")
+            if refresh_token and metering_point:
+                # Create entry with single metering point (legacy support)
+                await self.async_set_unique_id(refresh_token)
+                self._abort_if_unique_id_configured()
+                
+                return self.async_create_entry(
+                    title=f"Eloverblik {metering_point}",
+                    data={
+                        "refresh_token": refresh_token,
+                        "metering_points": [metering_point]
+                    }
+                )
         
         return await self.async_step_user(user_input)
 
@@ -144,29 +99,44 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         
         if user_input is not None:
-            self._refresh_token = user_input.get("refresh_token")
+            refresh_token = user_input.get("refresh_token")
             
-            if not self._refresh_token:
+            if not refresh_token:
                 errors["base"] = "invalid_auth"
             else:
                 try:
                     # Validate token format first
-                    if not validate_refresh_token(self._refresh_token):
+                    if not validate_refresh_token(refresh_token):
                         errors["base"] = "invalid_auth"
                     else:
-                        api = EloverblikAPI(self._refresh_token)
-                        # Get metering points
-                        self._metering_points = await self.hass.async_add_executor_job(
+                        api = EloverblikAPI(refresh_token)
+                        # Get all metering points
+                        metering_points = await self.hass.async_add_executor_job(
                             api.get_metering_points, False
                         )
                         
-                        if self._metering_points is None:
+                        if metering_points is None:
                             errors["base"] = "cannot_connect"
-                        elif not self._metering_points:
+                        elif not metering_points:
                             errors["base"] = "no_metering_points"
                         else:
-                            # Move to metering point selection step
-                            return await self.async_step_metering_point()
+                            # Extract metering point IDs
+                            mp_ids = [mp.get("meteringPointId") for mp in metering_points if mp.get("meteringPointId")]
+                            
+                            if not mp_ids:
+                                errors["base"] = "no_metering_points"
+                            else:
+                                # Create entry with all metering points
+                                await self.async_set_unique_id(refresh_token)
+                                self._abort_if_unique_id_configured()
+                                
+                                return self.async_create_entry(
+                                    title=f"Eloverblik ({len(mp_ids)} målepunkt{'er' if len(mp_ids) > 1 else ''})",
+                                    data={
+                                        "refresh_token": refresh_token,
+                                        "metering_points": mp_ids
+                                    }
+                                )
                             
                 except EloverblikAuthError:
                     errors["base"] = "invalid_auth"
@@ -180,73 +150,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user", data_schema=INITIAL_SCHEMA, errors=errors
         )
 
-    async def async_step_metering_point(self, user_input=None):
-        """Handle metering point selection step."""
-        errors = {}
-        
-        if user_input is not None:
-            metering_point = user_input["metering_point"]
-            
-            try:
-                info = await validate_input(self.hass, {
-                    "refresh_token": self._refresh_token,
-                    "metering_point": metering_point
-                })
-                
-                await self.async_set_unique_id(metering_point)
-                self._abort_if_unique_id_configured()
-                
-                return self.async_create_entry(
-                    title=info["title"],
-                    data={
-                        "refresh_token": self._refresh_token,
-                        "metering_point": metering_point
-                    }
-                )
-            except InvalidMeteringPoint:
-                errors["base"] = "invalid_metering_point"
-            except CannotConnect:
-                errors["base"] = "cannot_connect"
-            except InvalidAuth:
-                errors["base"] = "invalid_auth"
-            except Exception:  # pylint: disable=broad-except
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
-
-        # Build selection schema with metering points
-        metering_point_options = {}
-        for mp in self._metering_points or []:
-            mp_id = mp.get("meteringPointId")
-            if not mp_id:
-                continue
-                
-            mp_type = mp.get("typeOfMP", "")
-            city = mp.get("cityName", "")
-            postcode = mp.get("postcode", "")
-            
-            # Create a readable label
-            label_parts = [mp_id]
-            if mp_type:
-                label_parts.append(f"({mp_type})")
-            if city:
-                label_parts.append(f"- {city}")
-            if postcode:
-                label_parts.append(postcode)
-            
-            metering_point_options[mp_id] = " ".join(label_parts)
-
-        schema = vol.Schema({
-            vol.Required("metering_point"): vol.In(metering_point_options)
-        })
-
-        return self.async_show_form(
-            step_id="metering_point",
-            data_schema=schema,
-            errors=errors,
-            description_placeholders={
-                "count": str(len(metering_point_options))
-            }
-        )
 
 
 class CannotConnect(exceptions.HomeAssistantError):

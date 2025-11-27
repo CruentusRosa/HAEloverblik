@@ -39,22 +39,32 @@ async def async_setup(hass: HomeAssistant, config: dict):
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up Eloverblik from a config entry."""
     refresh_token = entry.data.get('refresh_token')
-    metering_point = entry.data.get('metering_point')
+    metering_points = entry.data.get('metering_points', [])
     
-    if not refresh_token or not metering_point:
-        _LOGGER.error("Missing required config data: refresh_token or metering_point")
+    # Support legacy config with single metering_point
+    if not metering_points:
+        metering_point = entry.data.get('metering_point')
+        if metering_point:
+            metering_points = [metering_point]
+    
+    if not refresh_token or not metering_points:
+        _LOGGER.error("Missing required config data: refresh_token or metering_points")
         return False
     
-    # Create client and fetch metering point details
-    client = HassEloverblik(refresh_token, metering_point)
+    # Create clients for all metering points
+    clients = {}
+    for metering_point in metering_points:
+        client = HassEloverblik(refresh_token, metering_point)
+        
+        # Fetch metering point details for additional information
+        try:
+            await hass.async_add_executor_job(client._fetch_metering_point_details)
+        except Exception as e:
+            _LOGGER.warning(f"Could not fetch metering point details for {metering_point}: {e}. Continuing without details.")
+        
+        clients[metering_point] = client
     
-    # Fetch metering point details for additional information
-    try:
-        await hass.async_add_executor_job(client._fetch_metering_point_details)
-    except Exception as e:
-        _LOGGER.warning(f"Could not fetch metering point details: {e}. Continuing without details.")
-    
-    hass.data[DOMAIN][entry.entry_id] = client
+    hass.data[DOMAIN][entry.entry_id] = clients
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 

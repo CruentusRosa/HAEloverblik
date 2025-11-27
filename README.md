@@ -87,17 +87,16 @@ For at bruge integrationen skal du have et refresh token fra [eloverblik.dk](htt
 
 1. Gå til **Settings** → **Devices & Services** → **Add Integration**.
 2. Søg efter **Eloverblik**.
-3. **Step 1**: Indtast kun dit **Refresh Token** (ikke målepunkt ID).
-4. **Step 2**: Integrationen henter automatisk dine tilgængelige målepunkter. Vælg det målepunkt du vil overvåge fra dropdown listen.
+3. Indtast dit **Refresh Token** fra eloverblik.dk.
+4. Integrationen henter automatisk alle dine målepunkter og opretter sensorer for hvert målepunkt.
 
 > **Bemærk**: 
-> - Integrationen henter automatisk alle dine målepunkter fra Eloverblik API, så du ikke behøver at kende målepunkt ID'et på forhånd.
+> - Integrationen opretter automatisk sensorer for **alle** målepunkter du har en aktiv relation til.
+> - Hvis du har flere målepunkter, får hver sensor et suffix med målepunkt ID for at skelne dem.
 > - Hvis du ser en fejl om at integrationen ikke understøtter konfiguration via brugerfladen, skal du:
 >   1. Genstarte Home Assistant
 >   2. Slette integrationen hvis den allerede er installeret og prøve igen
->   3. Tjekke at du har den nyeste version (0.7.0)
-> - Hvis du ser et målepunkt ID felt i første step, skal du genstarte Home Assistant for at rydde cache.
-> - Hvis du har en eksisterende integration fra version 1, skal du måske slette den og oprette en ny for at få den nye 2-step konfiguration.
+>   3. Tjekke at du har den nyeste version (0.8.0)
 
 ## 📊 Sensorer og Attributter
 
@@ -628,9 +627,15 @@ Dette projekt er baseret på det oprindelige [homeassistant-eloverblik](https://
 
 ---
 
-**Version**: 0.7.0
+**Version**: 0.8.0
 
-### Hvad er nyt i 0.7.0?
+### Hvad er nyt i 0.8.0?
+
+#### 🎉 Store Forbedringer
+- ✅ **Simplificeret konfiguration** - Nu kun ét step! Indtast kun refresh token, og integrationen opretter automatisk sensorer for alle dine målepunkter.
+- ✅ **Automatisk multi-målepunkt support** - Opretter sensorer for alle målepunkter du har en aktiv relation til, uden manuel valg.
+
+### Hvad var nyt i 0.7.0?
 
 #### 🎉 Store Forbedringer
 - ✅ **Native API implementation** - Fjernet afhængighed til `pyeloverblik` biblioteket. Nu 100% native implementation!
