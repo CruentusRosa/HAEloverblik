@@ -100,7 +100,7 @@ async def validate_input(hass: core.HomeAssistant, data: Dict[str, Any]):
         raise CannotConnect(f"Unable to connect to Eloverblik API: {error}") from error
 
 
-class ConfigFlow(config_entries.ConfigFlow):
+class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Eloverblik."""
 
     VERSION = 2

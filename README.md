@@ -241,15 +241,18 @@ Hvis du stadig ser et målepunkt ID felt i første step (i stedet for kun refres
 - **Tjek version**: Sørg for at du har version 0.7.0 eller nyere installeret.
 - **Efter genstart**: Gå til Settings → Devices & Services → Add Integration → Eloverblik. Du skulle nu kun se "Refresh Token" feltet i første step.
 
-### "Denne integration understøtter ikke konfiguration via brugerfladen"
+### "Denne integration understøtter ikke konfiguration via brugerfladen" eller "Invalid handler specified"
 
-Hvis du ser denne fejl:
+Hvis du ser disse fejl:
 
 - **Genstart Home Assistant**: Dette er oftest nødvendigt efter opdatering af integrationen.
+- **Slet __pycache__**: Slet `custom_components/eloverblik/__pycache__` mappen og genstart Home Assistant (dette rydder cached Python filer).
 - **Tjek filstruktur**: Sørg for at `config_flow.py` findes i `custom_components/eloverblik/` mappen.
 - **Tjek manifest.json**: Sørg for at `"config_flow": true` er sat i `manifest.json`.
+- **HACS reinstall**: Hvis du bruger HACS, prøv at slette integrationen i HACS og installere den igen.
 - **Slet og geninstaller**: Hvis problemet fortsætter, slet integrationen og installer den igen.
 - **Tjek logs**: Se Home Assistant logs for fejlmeddelelser (Settings → System → Logs).
+- **Brug manuel metode**: Hvis links ikke virker, gå manuelt til Settings → Devices & Services → Add Integration → Søg efter "Eloverblik"
 
 ## ❓ FAQ
 
