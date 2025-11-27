@@ -61,7 +61,6 @@ def validate_metering_point_id(mp_id: str) -> bool:
     return True
 
 
-
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Eloverblik."""
 
@@ -149,7 +148,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user", data_schema=INITIAL_SCHEMA, errors=errors
         )
-
 
 
 class CannotConnect(exceptions.HomeAssistantError):

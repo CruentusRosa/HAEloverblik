@@ -114,15 +114,15 @@ class EloverblikAPI:
         retry_delay = 1  # Start with 1 second
         
         for attempt in range(max_retries):
-        try:
-            response = requests.request(
-                method=method,
-                url=url,
-                headers=headers,
-                json=data,
-                params=params,
-                timeout=30  # 30 second timeout for API calls
-            )
+            try:
+                response = requests.request(
+                    method=method,
+                    url=url,
+                    headers=headers,
+                    json=data,
+                    params=params,
+                    timeout=30  # 30 second timeout for API calls
+                )
                 response.raise_for_status()
                 return response
             except HTTPError as e:

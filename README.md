@@ -244,13 +244,18 @@ Hvis du stadig ser et målepunkt ID felt i første step (i stedet for kun refres
 
 Hvis du ser disse fejl:
 
+- **Slet __pycache__**: Slet `custom_components/eloverblik/__pycache__` mappen og genstart Home Assistant (dette rydder cached Python filer). Dette er oftest løsningen!
 - **Genstart Home Assistant**: Dette er oftest nødvendigt efter opdatering af integrationen.
-- **Slet __pycache__**: Slet `custom_components/eloverblik/__pycache__` mappen og genstart Home Assistant (dette rydder cached Python filer).
+- **HACS reinstall**: Hvis du bruger HACS:
+  1. Gå til HACS → Integrations
+  2. Find Eloverblik og klik på ⋮ → Delete
+  3. Genstart Home Assistant
+  4. Installer integrationen igen gennem HACS
+  5. Genstart igen
 - **Tjek filstruktur**: Sørg for at `config_flow.py` findes i `custom_components/eloverblik/` mappen.
 - **Tjek manifest.json**: Sørg for at `"config_flow": true` er sat i `manifest.json`.
-- **HACS reinstall**: Hvis du bruger HACS, prøv at slette integrationen i HACS og installere den igen.
+- **Tjek logs**: Se Home Assistant logs for fejlmeddelelser (Settings → System → Logs). Se efter Python tracebacks eller import fejl.
 - **Slet og geninstaller**: Hvis problemet fortsætter, slet integrationen og installer den igen.
-- **Tjek logs**: Se Home Assistant logs for fejlmeddelelser (Settings → System → Logs).
 - **Brug manuel metode**: Hvis links ikke virker, gå manuelt til Settings → Devices & Services → Add Integration → Søg efter "Eloverblik"
 
 ## ❓ FAQ
