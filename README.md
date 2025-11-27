@@ -82,17 +82,27 @@ For at bruge integrationen skal du have et refresh token fra [eloverblik.dk](htt
 Integrationen opretter sensorer for hver time i de seneste 24 timer:
 - `sensor.eloverblik_energy_0_1` (time 0-1)
 - `sensor.eloverblik_energy_1_2` (time 1-2)
-- osv.
+- ... (op til 24 timer)
+
+**Attributes**: Alle energisensorer inkluderer metering point information (adresse, type, grid operator, etc.)
 
 ### Totalsensorer
 
 - `sensor.eloverblik_energy_total` - Samlet dagligt elforbrug (kWh)
+  - Opdateres hver time
+  - Viser data fra i går (data er 1-3 dage forsinket)
+  
 - `sensor.eloverblik_energy_total_year` - Samlet årligt elforbrug (kWh)
+  - Opdateres dagligt
+  - Viser månedsvis aggregering
 
 ### Tarifsensor
 
 - `sensor.eloverblik_tariff_sum` - Nuværende timepris (kr/kWh)
-  - Attribut: `hourly` - Array med priser for alle 24 timer
+  - **Opdatering**: Dagligt (med 24 timer cache)
+  - **Attributes**: 
+    - `hourly` - Array med priser for alle 24 timer
+    - Metering point information
 
 ### Statistiksensor
 
@@ -101,6 +111,7 @@ Integrationen opretter sensorer for hver time i de seneste 24 timer:
   - **Opdatering**: Hver 6. time for bedre kurver
   - **Bruges til**: Energy Dashboard, historiske kurver, og langtidsanalyse
   - Viser kumulativt totalt forbrug og importerer time-for-time data til long-term statistics
+  - **Note**: Sensoren kan vise "unknown" som værdi, men indeholder stadig gyldige langtidsstatistikker
 
 Alle sensorer viser værdier i kWh (undtagen tarifsensoren som viser kr/kWh).
 
