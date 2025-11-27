@@ -126,7 +126,7 @@ class EloverblikTariff(SensorEntity):
 
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_native_unit_of_measurement = CURRENCY_KRONER_PER_KILO_WATT_HOUR
-    _attr_state_class = SensorStateClass.MEASUREMENT
+    # No state_class for monetary sensors - they are instantaneous values
 
     def __init__(self, name: str, client: HassEloverblik):
         """Initialize the tariff sensor.
