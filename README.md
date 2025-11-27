@@ -74,6 +74,10 @@ For at bruge integrationen skal du have et refresh token fra [eloverblik.dk](htt
 
 > **Bemærk**: 
 > - Integrationen henter automatisk alle dine målepunkter fra Eloverblik API, så du ikke behøver at kende målepunkt ID'et på forhånd.
+> - Hvis du ser en fejl om at integrationen ikke understøtter konfiguration via brugerfladen, skal du:
+>   1. Genstarte Home Assistant
+>   2. Slette integrationen hvis den allerede er installeret og prøve igen
+>   3. Tjekke at du har den nyeste version (0.7.0)
 > - Hvis du ser et målepunkt ID felt i første step, skal du genstarte Home Assistant for at rydde cache.
 > - Hvis du har en eksisterende integration fra version 1, skal du måske slette den og oprette en ny for at få den nye 2-step konfiguration.
 
@@ -214,10 +218,20 @@ Du kan også ændre logniveauet gennem UI via service calls.
 
 Hvis du stadig ser et målepunkt ID felt i første step (i stedet for kun refresh token):
 
-- **Genstart Home Assistant**: Home Assistant cacher config flows. Genstart for at rydde cache (som du lige har gjort!).
+- **Genstart Home Assistant**: Home Assistant cacher config flows. Genstart for at rydde cache.
 - **Slet eksisterende integration**: Hvis du har en gammel integration fra version 1, slet den og opret en ny.
 - **Tjek version**: Sørg for at du har version 0.7.0 eller nyere installeret.
 - **Efter genstart**: Gå til Settings → Devices & Services → Add Integration → Eloverblik. Du skulle nu kun se "Refresh Token" feltet i første step.
+
+### "Denne integration understøtter ikke konfiguration via brugerfladen"
+
+Hvis du ser denne fejl:
+
+- **Genstart Home Assistant**: Dette er oftest nødvendigt efter opdatering af integrationen.
+- **Tjek filstruktur**: Sørg for at `config_flow.py` findes i `custom_components/eloverblik/` mappen.
+- **Tjek manifest.json**: Sørg for at `"config_flow": true` er sat i `manifest.json`.
+- **Slet og geninstaller**: Hvis problemet fortsætter, slet integrationen og installer den igen.
+- **Tjek logs**: Se Home Assistant logs for fejlmeddelelser (Settings → System → Logs).
 
 ## ❓ FAQ
 
@@ -244,7 +258,18 @@ Dette er normalt. Statistics sensoren viser "unknown" som værdi, men indeholder
 
 Hvis integrationen ikke kan forbinde, kan det være fordi dit refresh token er udløbet. Generer et nyt token i Eloverblik portalen under Data Sharing.
 
-## 💡 Eksempler
+## 💡 Eksempler og Use Cases
+
+### Energy Dashboard Setup
+
+Integrationen understøtter automatisk Home Assistant's Energy Dashboard. Tilføj `sensor.eloverblik_energy_statistic` til dit Energy Dashboard:
+
+1. Gå til **Settings** → **Dashboards** → **Energy**
+2. Under **Electricity grid** → **Add consumption**
+3. Vælg `sensor.eloverblik_energy_statistic`
+4. Vælg målepunktet (hvis du har flere)
+
+Sensoren importerer automatisk historiske data og opdaterer løbende med nye data hver 6. time.
 
 ### Dagligt gennemsnit og gauge
 
@@ -328,6 +353,217 @@ template:
 ```
 
 > **Bemærk**: Skift `nordpool` med navnet på din Nordpool sensor. Template antager at din Nordpool integration er konfigureret til IKKE at inkludere moms.
+
+### Daglig og månedlig elpris beregning
+
+Beregn den samlede pris for dit daglige og månedlige elforbrug:
+
+```yaml
+template:
+  - sensor:
+    # Daglig pris
+    - name: "Eloverblik Daily Cost"
+      unique_id: eloverblik_daily_cost
+      device_class: monetary
+      unit_of_measurement: "kr"
+      state: >
+        {{ (states('sensor.eloverblik_energy_total') | float(0)) * 
+           (states('sensor.eloverblik_tariff_sum') | float(0)) | round(2) }}
+      icon: mdi:currency-usd
+    
+    # Månedlig pris (baseret på årlig data)
+    - name: "Eloverblik Monthly Cost"
+      unique_id: eloverblik_monthly_cost
+      device_class: monetary
+      unit_of_measurement: "kr"
+      state: >
+        {% set year_total = states('sensor.eloverblik_energy_total_year') | float(0) %}
+        {% set current_month = now().month %}
+        {% set monthly_avg = year_total / 12 %}
+        {% set avg_tariff = state_attr('sensor.eloverblik_tariff_sum', 'hourly') | 
+                            default([0]) | sum / 24 if state_attr('sensor.eloverblik_tariff_sum', 'hourly') else 0 %}
+        {{ (monthly_avg * avg_tariff) | round(2) }}
+      icon: mdi:currency-usd
+```
+
+### Automatisering: Notifikation ved højt dagligt forbrug
+
+Send en notifikation hvis dit daglige forbrug overstiger et bestemt niveau:
+
+```yaml
+automation:
+  - alias: "Højt elforbrug notifikation"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.eloverblik_energy_total
+        above: 25  # kWh
+    condition:
+      - condition: time
+        after: "08:00:00"
+        before: "22:00:00"
+    action:
+      - service: notify.mobile_app_din_telefon
+        data:
+          message: >
+            Dit elforbrug i dag er {{ states('sensor.eloverblik_energy_total') }} kWh,
+            hvilket er over dit normale niveau.
+          title: "Højt elforbrug"
+```
+
+### Automatisering: Billigste tidspunkt at bruge strøm
+
+Automatiser opvaskemaskine, vaskemaskine eller opladere til at køre når strømmen er billigst:
+
+```yaml
+template:
+  - sensor:
+    - name: "Cheapest Hour Today"
+      unique_id: cheapest_hour_today
+      state: >
+        {% set hourly = state_attr('sensor.eloverblik_tariff_sum', 'hourly') | default([]) %}
+        {% if hourly | length > 0 %}
+          {{ hourly | map('float') | list | min | string }}
+        {% else %}
+          unknown
+        {% endif %}
+      attributes:
+        cheapest_hour_index: >
+          {% set hourly = state_attr('sensor.eloverblik_tariff_sum', 'hourly') | default([]) %}
+          {% if hourly | length > 0 %}
+            {{ hourly | map('float') | list | 
+               index(hourly | map('float') | list | min) }}
+          {% else %}
+            -1
+          {% endif %}
+
+automation:
+  - alias: "Start vaskemaskine ved billigste tidspunkt"
+    trigger:
+      - platform: time
+        at: "{{ state_attr('sensor.cheapest_hour_today', 'cheapest_hour_index') | int }}:00:00"
+    condition:
+      - condition: state
+        entity_id: binary_sensor.vaskemaskine_klar
+        state: "on"
+    action:
+      - service: switch.turn_on
+        entity_id: switch.vaskemaskine
+```
+
+### Sammenligning med tidligere måneder
+
+Opret en sensor der sammenligner dit nuværende månedlige forbrug med tidligere måneder:
+
+```yaml
+template:
+  - sensor:
+    - name: "Eloverblik Monthly Comparison"
+      unique_id: eloverblik_monthly_comparison
+      state: >
+        {% set current = states('sensor.eloverblik_energy_total') | float(0) %}
+        {% set year_total = states('sensor.eloverblik_energy_total_year') | float(0) %}
+        {% set monthly_avg = year_total / 12 %}
+        {% if monthly_avg > 0 %}
+          {{ ((current / monthly_avg - 1) * 100) | round(1) }}
+        {% else %}
+          0
+        {% endif %}
+      unit_of_measurement: "%"
+      icon: mdi:chart-line-variant
+      attributes:
+        current_month: "{{ states('sensor.eloverblik_energy_total') }}"
+        monthly_average: "{{ (states('sensor.eloverblik_energy_total_year') | float(0) / 12) | round(2) }}"
+```
+
+### Dashboard Card: Time-for-time forbrug og pris
+
+Vis både forbrug og pris time-for-time i en graf:
+
+```yaml
+type: history-graph
+title: "Elforbrug og Pris"
+entities:
+  - entity: sensor.eloverblik_energy_total
+    name: "Forbrug (kWh)"
+  - entity: sensor.eloverblik_tariff_sum
+    name: "Pris (kr/kWh)"
+hours_to_show: 24
+refresh: 60
+```
+
+### Automatisering: Opdatering når nye data er tilgængelig
+
+Send en notifikation når nye data er tilgængelig fra Eloverblik:
+
+```yaml
+automation:
+  - alias: "Nyt elforbrug data tilgængelig"
+    trigger:
+      - platform: state
+        entity_id: sensor.eloverblik_energy_total
+        # Trigger når sensoren opdateres (hver time)
+    condition:
+      - condition: template
+        value_template: >
+          {{ state_attr('sensor.eloverblik_energy_total', 'metering_date') != 
+             state_attr('sensor.eloverblik_energy_total', 'metering_date') }}
+    action:
+      - service: persistent_notification.create
+        data:
+          title: "Nyt elforbrug data"
+          message: >
+            Nye data tilgængelig for {{ state_attr('sensor.eloverblik_energy_total', 'metering_date') }}.
+            Forbrug: {{ states('sensor.eloverblik_energy_total') }} kWh
+```
+
+### Template: Time-for-time pris med moms
+
+Beregn den samlede pris inkl. moms for hver time:
+
+```yaml
+template:
+  - sensor:
+    - name: "Eloverblik Price with VAT"
+      unique_id: eloverblik_price_vat
+      device_class: monetary
+      unit_of_measurement: "kr/kWh"
+      state: >
+        {{ (states('sensor.eloverblik_tariff_sum') | float(0) * 1.25) | round(4) }}
+      attributes:
+        hourly_with_vat: >
+          {% set hourly = state_attr('sensor.eloverblik_tariff_sum', 'hourly') | default([]) %}
+          {% if hourly | length > 0 %}
+            {{ hourly | map('float') | map('multiply', 1.25) | map('round', 4) | list }}
+          {% else %}
+            []
+          {% endif %}
+```
+
+### Automatisering: Ugentlig elforbrug rapport
+
+Send en ugentlig rapport med dit elforbrug:
+
+```yaml
+automation:
+  - alias: "Ugentlig elforbrug rapport"
+    trigger:
+      - platform: time
+        at: "08:00:00"
+    condition:
+      - condition: time
+        weekday:
+          - mon
+    action:
+      - service: notify.mobile_app_din_telefon
+        data:
+          title: "Ugentlig elforbrug rapport"
+          message: >
+            📊 Elforbrug rapport for sidste uge:
+            
+            📅 Dagligt gennemsnit: {{ states('sensor.eloverblik_monthly_statistics') }} kWh
+            💰 Gennemsnitlig pris: {{ states('sensor.eloverblik_tariff_sum') }} kr/kWh
+            📈 Årligt total: {{ states('sensor.eloverblik_energy_total_year') }} kWh
+```
 
 ## 🛠️ Udvikling
 
