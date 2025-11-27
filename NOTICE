@@ -1,0 +1,15 @@
+Eloverblik Home Assistant Integration
+
+This project is based on and extends the original work:
+- Original project: homeassistant-eloverblik
+- Original developer: JonasPed (https://github.com/JonasPed)
+- Original repository: https://github.com/JonasPed/homeassistant-eloverblik
+
+This fork/updated version includes:
+- Modern Home Assistant patterns and updates
+- Improved error handling
+- Code quality improvements
+- Updated dependencies
+
+Licensed under Apache License 2.0
+

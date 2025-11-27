@@ -1,0 +1,30 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Eloverblik",
+                "description": "Skriv inn din refresh token fra eloverblik.dk",
+                "data": {
+                    "refresh_token": "Refresh Token"
+                }
+            },
+            "metering_point": {
+                "title": "Velg Målepunkt",
+                "description": "Velg målepunktet du vil overvåke. Fant {count} målepunkt(er).",
+                "data": {
+                    "metering_point": "Målepunkt"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Kunne ikke koble til Eloverblik API",
+            "invalid_auth": "Ugyldig autentisering",
+            "no_metering_points": "Ingen målepunkter funnet. Sørg for at du har koblet målepunkter i Eloverblik portalen.",
+            "invalid_metering_point": "Ugyldig målepunkt valgt",
+            "unknown": "Uventet feil"
+        },
+        "abort": {
+            "already_configured": "Enhet er allerede konfigurert"
+        }
+    }
+}

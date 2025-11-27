@@ -1,0 +1,16 @@
+{
+  "domain": "eloverblik",
+  "name": "Eloverblik",
+  "version": "0.6.1",
+  "config_flow": true,
+  "documentation": "https://github.com/CruentusRosa/HAEloverblik",
+  "issue_tracker": "https://github.com/CruentusRosa/HAEloverblik/issues",
+  "requirements": [],
+  "ssdp": [],
+  "zeroconf": [],
+  "homekit": {},
+  "dependencies": [],
+  "codeowners": [
+    "@CruentusRosa"
+  ]
+}

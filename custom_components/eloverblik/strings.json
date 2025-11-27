@@ -1,0 +1,30 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Eloverblik",
+        "description": "Enter your refresh token from eloverblik.dk",
+        "data": {
+          "refresh_token": "Refresh Token"
+        }
+      },
+      "metering_point": {
+        "title": "Select Metering Point",
+        "description": "Select the metering point you want to monitor. Found {count} metering point(s).",
+        "data": {
+          "metering_point": "Metering Point"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to Eloverblik API",
+      "invalid_auth": "Invalid authentication",
+      "no_metering_points": "No metering points found. Please ensure you have linked metering points in the Eloverblik portal.",
+      "invalid_metering_point": "Invalid metering point selected",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  }
+}
