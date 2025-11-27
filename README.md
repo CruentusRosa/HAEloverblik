@@ -34,28 +34,42 @@ Bemærk at Eloverblik API kan være ustabilt og langsomt - dette er uden for vor
 
 ## 🚀 Installation
 
-### Installation via HACS (Anbefalet)
+### Installation via HACS (Anbefalet) ⭐
+
+**Dette er den nemmeste og anbefalede metode til at installere integrationen.**
 
 1. Sørg for at [HACS](https://hacs.xyz/) er installeret.
-2. Søg efter og installer `eloverblik` integrationen gennem HACS.
+2. Installer integrationen gennem HACS:
    * **HACS Link** (virker kun hvis du har Home Assistant Companion app installeret):  
    [![Open your Home Assistant instance and open a the Eloverblik repository inside the Home Assistant Community Store](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=CruentusRosa&repository=HAEloverblik&category=integration)
-   * **Manuel metode**: Gå til HACS → Integrations → Add Custom Repository → Indtast `CruentusRosa/HAEloverblik` → Vælg `Integration` → Install
+   * **Manuel metode**: 
+     - Gå til **HACS** → **Integrations**
+     - Klik på **⋮** (tre prikker) → **Custom repositories**
+     - Indtast `CruentusRosa/HAEloverblik` i Repository URL
+     - Vælg `Integration` i Category
+     - Klik **Add**
+     - Find "Eloverblik" i HACS → Integrations og klik **Download**
 3. Genstart Home Assistant (Settings → ⋮ → Restart Home Assistant → Restart).
 4. [Konfigurer](#konfiguration) Eloverblik gennem Settings → Devices & Services → Add Integration.
    * **Config Flow Link** (virker kun hvis du har Home Assistant Companion app installeret):  
    [![Open your Home Assistant instance and start setting up a Eloverblik](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=eloverblik)
    * **Manuel metode**: Gå til Settings → Devices & Services → Add Integration → Søg efter "Eloverblik"
 
-### Manuel Installation
+### Manuel Installation (Alternativ)
 
-1. Kopiér `eloverblik` mappen ind i din `custom_components` mappe i din Home Assistant konfigurationsmappe.
+Hvis du ikke kan bruge HACS, kan du installere integrationen manuelt:
+
+1. Download eller klon dette repository.
+2. Kopiér `eloverblik` mappen ind i din `custom_components` mappe i din Home Assistant konfigurationsmappe.
    - Strukturen skal være: `custom_components/eloverblik/` med alle filer inde i `eloverblik` mappen.
-2. Genstart Home Assistant (Settings → ⋮ → Restart Home Assistant → Restart).
-3. [Konfigurer](#konfiguration) Eloverblik gennem Settings → Devices & Services → Add Integration.
+   - Sørg for at alle filer er kopieret korrekt (inkl. `config_flow.py`, `manifest.json`, etc.)
+3. Genstart Home Assistant (Settings → ⋮ → Restart Home Assistant → Restart).
+4. [Konfigurer](#konfiguration) Eloverblik gennem Settings → Devices & Services → Add Integration.
    * **Config Flow Link** (virker kun hvis du har Home Assistant Companion app installeret):  
    [![Open your Home Assistant instance and start setting up a Eloverblik](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=eloverblik)
    * **Manuel metode**: Gå til Settings → Devices & Services → Add Integration → Søg efter "Eloverblik"
+
+> **Bemærk**: HACS er stærkt anbefalet, da det gør opdateringer meget nemmere.
 
 ## ⚙️ Konfiguration
 
