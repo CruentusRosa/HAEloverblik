@@ -264,8 +264,8 @@ class HassEloverblik:
             # This matches the test.py logic that successfully retrieves data
             date_to = today_utc - timedelta(days=2)
             date_from = date_to - timedelta(days=1)
-            _LOGGER.info(f"[v{VERSION}] Requesting day data from {date_from.date()} to {date_to.date()} (today UTC: {today_utc.date()}) - using same logic as test.py")
-            _LOGGER.info(f"[v{VERSION}] Using metering point: {self._metering_point}")
+            _LOGGER.warning(f"[v{VERSION}] Requesting day data from {date_from.date()} to {date_to.date()} (today UTC: {today_utc.date()}) - using same logic as test.py")
+            _LOGGER.warning(f"[v{VERSION}] Using metering point: {self._metering_point}")
             
             try:
                 day_data_response = self._api.get_time_series(
@@ -283,24 +283,24 @@ class HassEloverblik:
             elif not day_data_response:
                 _LOGGER.warning(f"[v{VERSION}] API returned empty response for day data: {day_data_response}")
             else:
-                _LOGGER.info(f"[v{VERSION}] API returned response (type: {type(day_data_response)})")
+                _LOGGER.warning(f"[v{VERSION}] API returned response (type: {type(day_data_response)})")
             
             if day_data_response:
-                _LOGGER.info(f"[v{VERSION}] Received day data response, keys: {list(day_data_response.keys()) if isinstance(day_data_response, dict) else 'not a dict'}")
+                _LOGGER.warning(f"[v{VERSION}] Received day data response, keys: {list(day_data_response.keys()) if isinstance(day_data_response, dict) else 'not a dict'}")
                 if isinstance(day_data_response, dict) and "result" in day_data_response:
                     result_count = len(day_data_response.get("result", []))
-                    _LOGGER.info(f"[v{VERSION}] Response contains {result_count} result(s)")
+                    _LOGGER.warning(f"[v{VERSION}] Response contains {result_count} result(s)")
                     if result_count > 0:
                         first_result = day_data_response["result"][0]
-                        _LOGGER.info(f"[v{VERSION}] First result keys: {list(first_result.keys()) if isinstance(first_result, dict) else 'not a dict'}")
-                        _LOGGER.info(f"[v{VERSION}] First result success: {first_result.get('success', 'N/A')}")
+                        _LOGGER.warning(f"[v{VERSION}] First result keys: {list(first_result.keys()) if isinstance(first_result, dict) else 'not a dict'}")
+                        _LOGGER.warning(f"[v{VERSION}] First result success: {first_result.get('success', 'N/A')}")
                 
                 time_series_dict = self._parse_time_series_response(day_data_response)
                 if time_series_dict:
                     # Get the first (and should be only) time series
                     time_series = next(iter(time_series_dict.values()))
                     self._day_data = DayData(time_series)
-                    _LOGGER.info(f"[v{VERSION}] Successfully updated day data with {len(time_series._metering_data) if time_series._metering_data else 0} data points")
+                    _LOGGER.warning(f"[v{VERSION}] Successfully updated day data with {len(time_series._metering_data) if time_series._metering_data else 0} data points")
                 else:
                     _LOGGER.warning(f"[v{VERSION}] No day data parsed from response. Data may not be available yet (typically 1-3 days delayed).")
                     _LOGGER.info(f"[v{VERSION}] Response structure (first 1000 chars): {str(day_data_response)[:1000]}")  # Log first 1000 chars for debugging

@@ -309,7 +309,7 @@ class EloverblikAPI:
         date_from_str = date_from.strftime("%Y-%m-%d")
         date_to_str = date_to.strftime("%Y-%m-%d")
         
-        _LOGGER.info(f"[v{VERSION}] Requesting time series: {date_from_str} to {date_to_str} ({aggregation}) for metering point {metering_point}")
+        _LOGGER.warning(f"[v{VERSION}] Requesting time series: {date_from_str} to {date_to_str} ({aggregation}) for metering point {metering_point}")
         
         # Validate metering point ID format (should be 18 alphanumeric characters)
         if not metering_point or not isinstance(metering_point, str) or len(metering_point) != 18 or not metering_point.isalnum():
@@ -328,10 +328,10 @@ class EloverblikAPI:
         try:
             response = self._make_request("POST", endpoint, data=data)
             response_json = response.json()
-            _LOGGER.info(f"[v{VERSION}] API response received, keys: {list(response_json.keys()) if isinstance(response_json, dict) else 'not a dict'}")
+            _LOGGER.warning(f"[v{VERSION}] API response received, keys: {list(response_json.keys()) if isinstance(response_json, dict) else 'not a dict'}")
             if isinstance(response_json, dict) and "result" in response_json:
                 result_count = len(response_json.get("result", []))
-                _LOGGER.info(f"[v{VERSION}] API response contains {result_count} result(s)")
+                _LOGGER.warning(f"[v{VERSION}] API response contains {result_count} result(s)")
             return response_json
         except EloverblikAPIError as e:
             _LOGGER.warning(f"[v{VERSION}] Failed to get time series: {e}")
