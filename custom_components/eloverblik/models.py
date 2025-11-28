@@ -80,30 +80,30 @@ class TimeSeries:
                     _LOGGER.warning(f"[v{VERSION}] Market document is not a dict: {type(market_doc)}")
                     return
                 
-                _LOGGER.warning(f"[v{VERSION}] Market document found, keys: {list(market_doc.keys())}")
+                _LOGGER.debug(f"[v{VERSION}] Market document found, keys: {list(market_doc.keys())}")
                 
                 time_series_list = market_doc.get("TimeSeries", [])
                 
                 if not time_series_list:
                     _LOGGER.warning(f"[v{VERSION}] No TimeSeries found in market document. Market doc keys: {list(market_doc.keys()) if isinstance(market_doc, dict) else 'not a dict'}")
                     # Log the full market document structure for debugging
-                    _LOGGER.warning(f"[v{VERSION}] Market document content (first 500 chars): {str(market_doc)[:500]}")
+                    _LOGGER.debug(f"[v{VERSION}] Market document content (first 500 chars): {str(market_doc)[:500]}")
                 
                 if time_series_list:
-                    _LOGGER.warning(f"[v{VERSION}] Found {len(time_series_list)} TimeSeries in market document")
+                    _LOGGER.debug(f"[v{VERSION}] Found {len(time_series_list)} TimeSeries in market document")
                     # Combine all periods into one time series
                     all_points = []
                     latest_end = None
                     
                     for idx, time_series in enumerate(time_series_list):
-                        _LOGGER.warning(f"[v{VERSION}] Processing TimeSeries {idx + 1}, keys: {list(time_series.keys()) if isinstance(time_series, dict) else 'not a dict'}")
+                        _LOGGER.debug(f"[v{VERSION}] Processing TimeSeries {idx + 1}, keys: {list(time_series.keys()) if isinstance(time_series, dict) else 'not a dict'}")
                         periods = time_series.get("Period", [])
-                        _LOGGER.warning(f"[v{VERSION}] Found {len(periods)} Period(s) in TimeSeries {idx + 1}")
+                        _LOGGER.debug(f"[v{VERSION}] Found {len(periods)} Period(s) in TimeSeries {idx + 1}")
                         
                         for period_idx, period in enumerate(periods):
-                            _LOGGER.warning(f"[v{VERSION}] Processing Period {period_idx + 1}, keys: {list(period.keys()) if isinstance(period, dict) else 'not a dict'}")
+                            _LOGGER.debug(f"[v{VERSION}] Processing Period {period_idx + 1}, keys: {list(period.keys()) if isinstance(period, dict) else 'not a dict'}")
                             points = period.get("Point", [])
-                            _LOGGER.warning(f"[v{VERSION}] Found {len(points)} Point(s) in Period {period_idx + 1}")
+                            _LOGGER.debug(f"[v{VERSION}] Found {len(points)} Point(s) in Period {period_idx + 1}")
                             
                             # Extract time interval
                             time_interval = period.get("timeInterval", {})
@@ -121,7 +121,6 @@ class TimeSeries:
                             
                             # Extract metering data from points
                             for point_idx, point in enumerate(points):
-                                _LOGGER.warning(f"[v{VERSION}] Processing Point {point_idx + 1}, keys: {list(point.keys()) if isinstance(point, dict) else 'not a dict'}")
                                 position = point.get("position")
                                 # API returns out_Quantity.quantity as a flat key (not nested structure)
                                 # Try both formats for compatibility
@@ -130,7 +129,7 @@ class TimeSeries:
                                     # Fallback: try nested structure if flat key doesn't exist
                                     quantity_obj = point.get("out_Quantity", {})
                                     quantity = quantity_obj.get("quantity") if isinstance(quantity_obj, dict) else None
-                                _LOGGER.warning(f"[v{VERSION}] Point {point_idx + 1} - position: {position}, quantity: {quantity}")
+                                _LOGGER.debug(f"[v{VERSION}] Point {point_idx + 1} - position: {position}, quantity: {quantity}")
                                 
                                 if quantity is not None:
                                     try:

@@ -304,7 +304,9 @@ class EloverblikStatistic(SensorEntity):
         )
 
         if len(statistics) > 0:
-            async_import_statistics(self.hass, metadata, statistics)
+            # mean_type is required in Home Assistant 2026.11+
+            # Since has_mean=False, we use None for mean_type
+            async_import_statistics(self.hass, metadata, statistics, mean_type=None)
             # Update sensor value to latest total for real-time display
             if statistics:
                 self._last_total = statistics[-1]["sum"]
