@@ -401,12 +401,18 @@ class HassEloverblik:
         
         try:
             if "result" in response:
-                for response_item in response["result"]:
+                _LOGGER.warning(f"[v{VERSION}] Parsing {len(response['result'])} result(s) from time series response")
+                for idx, response_item in enumerate(response["result"]):
+                    _LOGGER.warning(f"[v{VERSION}] Parsing result {idx + 1}, keys: {list(response_item.keys()) if isinstance(response_item, dict) else 'not a dict'}")
                     # Wrap single response item in full response structure for TimeSeries parser
                     wrapped_response = {"result": [response_item]}
                     time_series = TimeSeries(wrapped_response)
+                    _LOGGER.warning(f"[v{VERSION}] TimeSeries parsed - data_date: {time_series.data_date}, data_points: {len(time_series._metering_data) if time_series._metering_data else 0}")
                     if time_series.data_date and time_series._metering_data:
                         result_dict[time_series.data_date] = time_series
+                        _LOGGER.warning(f"[v{VERSION}] Added time series to result_dict with {len(time_series._metering_data)} data points")
+                    else:
+                        _LOGGER.warning(f"[v{VERSION}] TimeSeries missing data_date or _metering_data - data_date: {time_series.data_date}, has_data: {bool(time_series._metering_data)}")
         except Exception as e:
             _LOGGER.warning(f"[v{VERSION}] Error parsing time series response: {e}", exc_info=True)
             
