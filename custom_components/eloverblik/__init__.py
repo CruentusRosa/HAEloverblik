@@ -271,16 +271,24 @@ class HassEloverblik:
             )
             
             if day_data_response:
-                _LOGGER.debug(f"[v{VERSION}] Received day data response, keys: {list(day_data_response.keys()) if isinstance(day_data_response, dict) else 'not a dict'}")
+                _LOGGER.info(f"[v{VERSION}] Received day data response, keys: {list(day_data_response.keys()) if isinstance(day_data_response, dict) else 'not a dict'}")
+                if isinstance(day_data_response, dict) and "result" in day_data_response:
+                    result_count = len(day_data_response.get("result", []))
+                    _LOGGER.info(f"[v{VERSION}] Response contains {result_count} result(s)")
+                    if result_count > 0:
+                        first_result = day_data_response["result"][0]
+                        _LOGGER.info(f"[v{VERSION}] First result keys: {list(first_result.keys()) if isinstance(first_result, dict) else 'not a dict'}")
+                        _LOGGER.info(f"[v{VERSION}] First result success: {first_result.get('success', 'N/A')}")
+                
                 time_series_dict = self._parse_time_series_response(day_data_response)
                 if time_series_dict:
                     # Get the first (and should be only) time series
                     time_series = next(iter(time_series_dict.values()))
                     self._day_data = DayData(time_series)
-                    _LOGGER.debug(f"[v{VERSION}] Successfully updated day data")
+                    _LOGGER.info(f"[v{VERSION}] Successfully updated day data with {len(time_series._metering_data) if time_series._metering_data else 0} data points")
                 else:
                     _LOGGER.warning(f"[v{VERSION}] No day data parsed from response. Data may not be available yet (typically 1-3 days delayed).")
-                    _LOGGER.debug(f"[v{VERSION}] Response structure: {str(day_data_response)[:500]}")  # Log first 500 chars for debugging
+                    _LOGGER.info(f"[v{VERSION}] Response structure (first 1000 chars): {str(day_data_response)[:1000]}")  # Log first 1000 chars for debugging
                     # Keep existing data if available
             else:
                 _LOGGER.warning(f"[v{VERSION}] Failed to get day data from Eloverblik. Data may not be available yet (typically 1-3 days delayed).")

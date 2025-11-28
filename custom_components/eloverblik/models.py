@@ -2,8 +2,18 @@
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 import logging
+import json
+import os
 
 _LOGGER = logging.getLogger(__name__)
+
+# Version for logging
+try:
+    manifest_path = os.path.join(os.path.dirname(__file__), 'manifest.json')
+    with open(manifest_path) as f:
+        VERSION = json.load(f).get('version', 'unknown')
+except Exception:
+    VERSION = 'unknown'
 
 
 class TimeSeries:
@@ -52,13 +62,25 @@ class TimeSeries:
                 if not response_item.get("success", True):
                     error_code = response_item.get("errorCode")
                     error_text = response_item.get("errorText", "Unknown error")
-                    _LOGGER.warning(f"API returned error: {error_code} - {error_text}")
+                    _LOGGER.warning(f"[v{VERSION}] API returned error: {error_code} - {error_text}")
                     return
                 
                 # Try different possible keys for the market document
-                market_doc = response_item.get("MyEnergyData_MarketDocument") or response_item.get("MyEnergyDataMarketDocument", {})
+                market_doc = response_item.get("MyEnergyData_MarketDocument") or response_item.get("MyEnergyDataMarketDocument")
                 
-                time_series_list = market_doc.get("TimeSeries", []) if isinstance(market_doc, dict) else []
+                if not market_doc:
+                    # Log all keys to see what's actually in the response
+                    _LOGGER.warning(f"[v{VERSION}] No market document found. Response item keys: {list(response_item.keys()) if isinstance(response_item, dict) else 'not a dict'}")
+                    return
+                
+                if not isinstance(market_doc, dict):
+                    _LOGGER.warning(f"[v{VERSION}] Market document is not a dict: {type(market_doc)}")
+                    return
+                
+                time_series_list = market_doc.get("TimeSeries", [])
+                
+                if not time_series_list:
+                    _LOGGER.warning(f"[v{VERSION}] No TimeSeries found in market document. Market doc keys: {list(market_doc.keys()) if isinstance(market_doc, dict) else 'not a dict'}")
                 
                 if time_series_list:
                     # Combine all periods into one time series

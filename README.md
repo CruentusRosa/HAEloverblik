@@ -82,7 +82,7 @@ For at bruge integrationen skal du have et refresh token fra [eloverblik.dk](htt
 > - Hvis du ser en fejl om at integrationen ikke understøtter konfiguration via brugerfladen, skal du:
 >   1. Genstarte Home Assistant
 >   2. Slette integrationen hvis den allerede er installeret og prøve igen
->   3. Tjekke at du har den nyeste version (0.8.4)
+>   3. Tjekke at du har den nyeste version (0.8.5)
 
 ## 📊 Sensorer og Attributter
 
@@ -618,7 +618,13 @@ Dette projekt er baseret på det oprindelige [homeassistant-eloverblik](https://
 
 ---
 
-**Version**: 0.8.4
+**Version**: 0.8.5
+
+### Hvad er nyt i 0.8.5?
+
+- **Forbedret logging** - Logger nu på INFO niveau så du kan se hvad der sker uden at aktivere debug
+- **Bedre fejldiagnosticering** - Viser nu response struktur og keys når data ikke kan parses
+- **Forbedret parsing** - Bedre håndtering af manglende eller uventede data strukturer
 
 ### Hvad er nyt i 0.8.4?
 
