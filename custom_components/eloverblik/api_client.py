@@ -8,6 +8,19 @@ from requests.exceptions import HTTPError, RequestException
 
 _LOGGER = logging.getLogger(__name__)
 
+# Version for logging
+try:
+    from .manifest import VERSION
+except ImportError:
+    try:
+        import json
+        import os
+        manifest_path = os.path.join(os.path.dirname(__file__), 'manifest.json')
+        with open(manifest_path) as f:
+            VERSION = json.load(f).get('version', 'unknown')
+    except Exception:
+        VERSION = 'unknown'
+
 # Eloverblik API base URL
 API_BASE_URL = "https://api.eloverblik.dk/customerapi/api"
 
@@ -141,7 +154,7 @@ class EloverblikAPI:
                 elif status_code == 429:
                     if attempt < max_retries - 1:
                         wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
-                        _LOGGER.warning(f"Rate limited (429). Waiting {wait_time} seconds before retry {attempt + 1}/{max_retries}")
+                        _LOGGER.warning(f"[v{VERSION}] Rate limited (429). Waiting {wait_time} seconds before retry {attempt + 1}/{max_retries}")
                         time.sleep(wait_time)
                         continue
                     raise EloverblikAPIError("Rate limit exceeded. Please try again later.") from e
@@ -150,7 +163,7 @@ class EloverblikAPI:
                 elif status_code == 503:
                     if attempt < max_retries - 1:
                         wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
-                        _LOGGER.warning(f"Service unavailable (503). Waiting {wait_time} seconds before retry {attempt + 1}/{max_retries}")
+                        _LOGGER.warning(f"[v{VERSION}] Service unavailable (503). Waiting {wait_time} seconds before retry {attempt + 1}/{max_retries}")
                         time.sleep(wait_time)
                         continue
                     raise EloverblikAPIError("Service is temporarily unavailable. Please try again later.") from e
@@ -161,7 +174,7 @@ class EloverblikAPI:
             except RequestException as e:
                 if attempt < max_retries - 1:
                     wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
-                    _LOGGER.warning(f"Request error: {e}. Retrying in {wait_time} seconds ({attempt + 1}/{max_retries})")
+                    _LOGGER.warning(f"[v{VERSION}] Request error: {e}. Retrying in {wait_time} seconds ({attempt + 1}/{max_retries})")
                     time.sleep(wait_time)
                     continue
                 raise EloverblikAPIError(f"Request error after {max_retries} attempts: {e}") from e
@@ -186,7 +199,7 @@ class EloverblikAPI:
                 return result if isinstance(result, bool) else True
             elif response.status_code == 503:
                 # Service is overloaded or down
-                _LOGGER.warning("Eloverblik service is unavailable (503). Service may be overloaded or down.")
+                _LOGGER.warning(f"[v{VERSION}] Eloverblik service is unavailable (503). Service may be overloaded or down.")
                 return False
             return False
         except requests.exceptions.RequestException as e:
@@ -227,14 +240,21 @@ class EloverblikAPI:
         # Validate dates - API doesn't accept future dates
         today_utc = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         if date_from > today_utc:
-            _LOGGER.warning(f"Date from ({date_from.date()}) is in the future. Using today instead.")
+            _LOGGER.warning(f"[v{VERSION}] Date from ({date_from.date()}) is in the future. Using today ({today_utc.date()}) instead.")
             date_from = today_utc
         if date_to > today_utc:
-            _LOGGER.warning(f"Date to ({date_to.date()}) is in the future. Using today instead.")
+            _LOGGER.warning(f"[v{VERSION}] Date to ({date_to.date()}) is in the future. Using today ({today_utc.date()}) instead.")
             date_to = today_utc
+        
+        # Ensure date_to is not before date_from
+        if date_to < date_from:
+            _LOGGER.warning(f"[v{VERSION}] Date to ({date_to.date()}) is before date from ({date_from.date()}). Swapping dates.")
+            date_from, date_to = date_to, date_from
         
         date_from_str = date_from.strftime("%Y-%m-%d")
         date_to_str = date_to.strftime("%Y-%m-%d")
+        
+        _LOGGER.debug(f"[v{VERSION}] Requesting time series: {date_from_str} to {date_to_str} ({aggregation})")
         
         endpoint = f"/meterdata/gettimeseries/{date_from_str}/{date_to_str}/{aggregation}"
         data = {
@@ -247,7 +267,7 @@ class EloverblikAPI:
             response = self._make_request("POST", endpoint, data=data)
             return response.json()
         except EloverblikAPIError as e:
-            _LOGGER.warning(f"Failed to get time series: {e}")
+            _LOGGER.warning(f"[v{VERSION}] Failed to get time series: {e}")
             return None
 
     def get_charges(self, metering_point: str) -> Optional[Dict[str, Any]]:
@@ -270,7 +290,7 @@ class EloverblikAPI:
             response = self._make_request("POST", endpoint, data=data)
             return response.json()
         except EloverblikAPIError as e:
-            _LOGGER.warning(f"Failed to get charges: {e}")
+            _LOGGER.warning(f"[v{VERSION}] Failed to get charges: {e}")
             return None
 
     def get_metering_points(self, include_all: bool = False) -> Optional[List[Dict[str, Any]]]:
@@ -295,7 +315,7 @@ class EloverblikAPI:
                 return result["result"]
             return []
         except EloverblikAPIError as e:
-            _LOGGER.warning(f"Failed to get metering points: {e}")
+            _LOGGER.warning(f"[v{VERSION}] Failed to get metering points: {e}")
             return None
 
     def get_metering_point_details(self, metering_point: str) -> Optional[Dict[str, Any]]:
@@ -318,6 +338,6 @@ class EloverblikAPI:
             response = self._make_request("POST", endpoint, data=data)
             return response.json()
         except EloverblikAPIError as e:
-            _LOGGER.warning(f"Failed to get metering point details: {e}")
+            _LOGGER.warning(f"[v{VERSION}] Failed to get metering point details: {e}")
             return None
 

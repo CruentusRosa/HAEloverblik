@@ -19,6 +19,16 @@ _YEAR_DATA_CACHE: Dict[str, tuple] = {}
 
 _LOGGER = logging.getLogger(__name__)
 
+# Version for logging
+try:
+    import json
+    import os
+    manifest_path = os.path.join(os.path.dirname(__file__), 'manifest.json')
+    with open(manifest_path) as f:
+        VERSION = json.load(f).get('version', 'unknown')
+except Exception:
+    VERSION = 'unknown'
+
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
 PLATFORMS = ["sensor"]
@@ -33,6 +43,7 @@ MIN_TIME_BETWEEN_STATISTICS_UPDATES = timedelta(hours=6)  # Every 6 hours for st
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the Eloverblik component."""
     hass.data[DOMAIN] = {}
+    _LOGGER.info(f"[v{VERSION}] Eloverblik integration initialized")
     return True
 
 
@@ -48,7 +59,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             metering_points = [metering_point]
     
     if not refresh_token or not metering_points:
-        _LOGGER.error("Missing required config data: refresh_token or metering_points")
+        _LOGGER.error(f"[v{VERSION}] Missing required config data: refresh_token or metering_points")
         return False
     
     # Create clients for all metering points
@@ -60,7 +71,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         try:
             await hass.async_add_executor_job(client._fetch_metering_point_details)
         except Exception as e:
-            _LOGGER.warning(f"Could not fetch metering point details for {metering_point}: {e}. Continuing without details.")
+            _LOGGER.warning(f"[v{VERSION}] Could not fetch metering point details for {metering_point}: {e}. Continuing without details.")
         
         clients[metering_point] = client
     
@@ -181,7 +192,7 @@ class HassEloverblik:
         try:
             # Check if service is alive first
             if not self._api.check_isalive():
-                _LOGGER.warning("Eloverblik service is not available")
+                _LOGGER.warning(f"[v{VERSION}] Eloverblik service is not available")
                 return None
                 
             raw_data = self._api.get_time_series(
@@ -196,11 +207,11 @@ class HassEloverblik:
                 return self._parse_time_series_response(raw_data)
                 
         except EloverblikAuthError as e:
-            _LOGGER.warning(f"Authentication error: {e}")
+            _LOGGER.warning(f"[v{VERSION}] Authentication error: {e}")
         except EloverblikAPIError as e:
-            _LOGGER.warning(f"API error while getting historic data: {e}")
+            _LOGGER.warning(f"[v{VERSION}] API error while getting historic data: {e}")
         except Exception as e:
-            _LOGGER.warning(f"Unexpected exception while getting historic data: {e}", exc_info=True)
+            _LOGGER.warning(f"[v{VERSION}] Unexpected exception while getting historic data: {e}", exc_info=True)
         return None
 
     def get_data_date(self) -> Optional[str]:
@@ -222,7 +233,7 @@ class HassEloverblik:
                     if len(tariff) == 24:
                         tariff_sum += tariff[hour - 1]
                     else:
-                        _LOGGER.warning(f"Unexpected length of tariff array ({len(tariff)}), expected 24 entries.")
+                        _LOGGER.warning(f"[v{VERSION}] Unexpected length of tariff array ({len(tariff)}), expected 24 entries.")
                 else:
                     tariff_sum += float(tariff)
             return tariff_sum
@@ -236,7 +247,7 @@ class HassEloverblik:
         try:
             # Check if service is alive first
             if not self._api.check_isalive():
-                _LOGGER.warning("Eloverblik service is not available, skipping energy update")
+                _LOGGER.warning(f"[v{VERSION}] Eloverblik service is not available, skipping energy update")
                 return
 
             # Get latest day data (yesterday, as data is 1-3 days delayed)
@@ -257,10 +268,10 @@ class HassEloverblik:
                     self._day_data = DayData(time_series)
                     _LOGGER.debug("Successfully updated day data")
                 else:
-                    _LOGGER.warning("No day data parsed from response. Data may not be available yet (typically 1-3 days delayed).")
+                    _LOGGER.warning(f"[v{VERSION}] No day data parsed from response. Data may not be available yet (typically 1-3 days delayed).")
                     # Keep existing data if available
             else:
-                _LOGGER.warning("Failed to get day data from Eloverblik. Data may not be available yet (typically 1-3 days delayed).")
+                _LOGGER.warning(f"[v{VERSION}] Failed to get day data from Eloverblik. Data may not be available yet (typically 1-3 days delayed).")
                 # Keep existing data if available
 
             # Get year data (monthly aggregation) - only fetch new months
@@ -324,9 +335,9 @@ class HassEloverblik:
                         _YEAR_DATA_CACHE[cache_key] = (self._year_data, datetime.now())
                         _LOGGER.debug("Year data updated and cached")
                 else:
-                    _LOGGER.warning("No year data parsed from response. Data may not be available yet.")
+                    _LOGGER.warning(f"[v{VERSION}] No year data parsed from response. Data may not be available yet.")
             else:
-                _LOGGER.warning("Failed to get year data from Eloverblik. Data may not be available yet.")
+                _LOGGER.warning(f"[v{VERSION}] Failed to get year data from Eloverblik. Data may not be available yet.")
                 # Use cached data if available
                 if cache_key in _YEAR_DATA_CACHE:
                     cached_data, _ = _YEAR_DATA_CACHE[cache_key]
@@ -334,11 +345,11 @@ class HassEloverblik:
                     _LOGGER.debug("Using cached year data due to API failure")
                 
         except EloverblikAuthError as e:
-            _LOGGER.warning(f"Authentication error while fetching energy data: {e}")
+            _LOGGER.warning(f"[v{VERSION}] Authentication error while fetching energy data: {e}")
         except EloverblikAPIError as e:
-            _LOGGER.warning(f"API error while fetching energy data: {e}")
+            _LOGGER.warning(f"[v{VERSION}] API error while fetching energy data: {e}")
         except Exception as e:
-            _LOGGER.warning(f"Unexpected exception while fetching energy data: {e}", exc_info=True)
+            _LOGGER.warning(f"[v{VERSION}] Unexpected exception while fetching energy data: {e}", exc_info=True)
 
         _LOGGER.debug("Done fetching energy data from Eloverblik")
 
@@ -362,7 +373,7 @@ class HassEloverblik:
                     if time_series.data_date and time_series._metering_data:
                         result_dict[time_series.data_date] = time_series
         except Exception as e:
-            _LOGGER.warning(f"Error parsing time series response: {e}", exc_info=True)
+            _LOGGER.warning(f"[v{VERSION}] Error parsing time series response: {e}", exc_info=True)
             
         return result_dict if result_dict else None
 
@@ -387,7 +398,7 @@ class HassEloverblik:
             
             # Check if service is alive first
             if not self._api.check_isalive():
-                _LOGGER.warning("Eloverblik service is not available, skipping tariff update")
+                _LOGGER.warning(f"[v{VERSION}] Eloverblik service is not available, skipping tariff update")
                 # Use cached data if available
                 if cache_key in _TARIFF_CACHE:
                     cached_data, _ = _TARIFF_CACHE[cache_key]
@@ -410,7 +421,7 @@ class HassEloverblik:
                     # Update cache timestamp
                     _TARIFF_CACHE[cache_key] = (self._tariff_data, datetime.now())
             else:
-                _LOGGER.warning("Failed to get tariff data from Eloverblik")
+                _LOGGER.warning(f"[v{VERSION}] Failed to get tariff data from Eloverblik")
                 # Use cached data if available
                 if cache_key in _TARIFF_CACHE:
                     cached_data, _ = _TARIFF_CACHE[cache_key]
@@ -418,18 +429,18 @@ class HassEloverblik:
                     _LOGGER.debug("Using cached tariff data due to API failure")
                 
         except EloverblikAuthError as e:
-            _LOGGER.warning(f"Authentication error while fetching tariff data: {e}")
+            _LOGGER.warning(f"[v{VERSION}] Authentication error while fetching tariff data: {e}")
             # Use cached data if available
             if cache_key in _TARIFF_CACHE:
                 cached_data, _ = _TARIFF_CACHE[cache_key]
                 self._tariff_data = cached_data
         except EloverblikAPIError as e:
-            _LOGGER.warning(f"API error while fetching tariff data: {e}")
+            _LOGGER.warning(f"[v{VERSION}] API error while fetching tariff data: {e}")
             # Use cached data if available
             if cache_key in _TARIFF_CACHE:
                 cached_data, _ = _TARIFF_CACHE[cache_key]
                 self._tariff_data = cached_data
         except Exception as e:
-            _LOGGER.warning(f"Unexpected exception while fetching tariff data: {e}", exc_info=True)
+            _LOGGER.warning(f"[v{VERSION}] Unexpected exception while fetching tariff data: {e}", exc_info=True)
 
         _LOGGER.debug("Done fetching tariff data from Eloverblik")
