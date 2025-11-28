@@ -1,7 +1,7 @@
 {
   "domain": "eloverblik",
   "name": "Eloverblik",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "config_flow": true,
   "documentation": "https://github.com/CruentusRosa/HAEloverblik",
   "issue_tracker": "https://github.com/CruentusRosa/HAEloverblik/issues",

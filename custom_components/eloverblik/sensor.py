@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from typing import Optional
 import logging
 import pytz
+import json
+import os
 from homeassistant.const import UnitOfEnergy
 from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.statistics import (
@@ -27,6 +29,14 @@ from .const import DOMAIN, CURRENCY_KRONER_PER_KILO_WATT_HOUR
 from .models import TimeSeries
 
 _LOGGER = logging.getLogger(__name__)
+
+# Version for logging
+try:
+    manifest_path = os.path.join(os.path.dirname(__file__), 'manifest.json')
+    with open(manifest_path) as f:
+        VERSION = json.load(f).get('version', 'unknown')
+except Exception:
+    VERSION = 'unknown'
 
 async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry, async_add_entities):
     """Set up the sensor platform."""
@@ -235,10 +245,10 @@ class EloverblikStatistic(SensorEntity):
         
         # Don't fetch if from_date is too recent
         if from_date >= to_date:
-            _LOGGER.debug("No new data available yet (data is delayed by 1-3 days)")
+            _LOGGER.debug(f"[v{VERSION}] No new data available yet (data is delayed by 1-3 days)")
             return
 
-        _LOGGER.debug(f"Fetching hourly data from {from_date} to {to_date}")
+        _LOGGER.debug(f"[v{VERSION}] Fetching hourly data from {from_date} to {to_date}")
         
         data = await self.hass.async_add_executor_job(
             self._hass_eloverblik.get_hourly_data,
@@ -247,9 +257,9 @@ class EloverblikStatistic(SensorEntity):
 
         if data is not None and len(data) > 0:
             await self._insert_statistics(data, last_stat)
-            _LOGGER.info(f"Imported {len(data)} time series periods to statistics")
+            _LOGGER.info(f"[v{VERSION}] Imported {len(data)} time series periods to statistics")
         else:
-            _LOGGER.debug("No data was returned from Eloverblik")
+            _LOGGER.debug(f"[v{VERSION}] No data was returned from Eloverblik")
 
     async def _insert_statistics(
         self,

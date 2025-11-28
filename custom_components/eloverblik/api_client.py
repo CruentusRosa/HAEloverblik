@@ -264,11 +264,11 @@ class EloverblikAPI:
             date_from, date_to = date_to, date_from
         
         # Additional safety: Ensure dates are not too far in the past (API may have limits)
-        # Also ensure we're not requesting today's date (data is typically 1-3 days delayed)
-        max_past_days = 365  # API should support at least 1 year
+        # API should support at least 1 year, but we'll allow up to 2 years for safety
+        max_past_days = 730  # 2 years
         min_date = today_utc - timedelta(days=max_past_days)
         if date_from < min_date:
-            _LOGGER.warning(f"[v{VERSION}] Date from ({date_from.date()}) is too far in the past. Using {min_date.date()} instead.")
+            _LOGGER.warning(f"[v{VERSION}] Date from ({date_from.date()}) is too far in the past (more than {max_past_days} days). Using {min_date.date()} instead.")
             date_from = min_date
         
         date_from_str = date_from.strftime("%Y-%m-%d")
