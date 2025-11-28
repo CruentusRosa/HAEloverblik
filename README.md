@@ -618,7 +618,11 @@ Dette projekt er baseret på det oprindelige [homeassistant-eloverblik](https://
 
 ---
 
-**Version**: 0.10.0
+**Version**: 0.10.1
+
+### Hvad er nyt i 0.10.1?
+
+- **Fixet kompatibilitet med gamle Home Assistant versioner** - Håndterer nu både versioner med og uden `mean_type` parameter i `async_import_statistics()`. Fixer TypeError fejl på ældre HA versioner.
 
 ### Hvad er nyt i 0.10.0?
 
