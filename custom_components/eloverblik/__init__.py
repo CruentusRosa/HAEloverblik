@@ -43,7 +43,7 @@ MIN_TIME_BETWEEN_STATISTICS_UPDATES = timedelta(hours=6)  # Every 6 hours for st
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the Eloverblik component."""
     hass.data[DOMAIN] = {}
-    _LOGGER.info(f"[v{VERSION}] Eloverblik integration initialized")
+    _LOGGER.info(f"[v{VERSION}] Eloverblik integration initialized (version {VERSION})")
     return True
 
 

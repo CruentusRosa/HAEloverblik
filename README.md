@@ -38,22 +38,7 @@ Bemærk at Eloverblik API kan være ustabilt og langsomt - dette er uden for vor
 
 **Dette er den nemmeste og anbefalede metode til at installere integrationen.**
 
-1. Sørg for at [HACS](https://hacs.xyz/) er installeret.
-2. Installer integrationen gennem HACS:
-   * **HACS Link** (virker kun hvis du har Home Assistant Companion app installeret):  
-   [![Open your Home Assistant instance and open a the Eloverblik repository inside the Home Assistant Community Store](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=CruentusRosa&repository=HAEloverblik&category=integration)
-   * **Manuel metode**: 
-     - Gå til **HACS** → **Integrations**
-     - Klik på **⋮** (tre prikker) → **Custom repositories**
-     - Indtast `CruentusRosa/HAEloverblik` i Repository URL
-     - Vælg `Integration` i Category
-     - Klik **Add**
-     - Find "Eloverblik" i HACS → Integrations og klik **Download**
-3. Genstart Home Assistant (Settings → ⋮ → Restart Home Assistant → Restart).
-4. [Konfigurer](#konfiguration) Eloverblik gennem Settings → Devices & Services → Add Integration.
-   * **Config Flow Link** (virker kun hvis du har Home Assistant Companion app installeret):  
-   [![Open your Home Assistant instance and start setting up a Eloverblik](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=eloverblik)
-   * **Manuel metode**: Gå til Settings → Devices & Services → Add Integration → Søg efter "Eloverblik"
+1.ration → Søg efter "Eloverblik"
 
 ### Manuel Installation (Alternativ)
 
@@ -82,7 +67,22 @@ For at bruge integrationen skal du have et refresh token fra [eloverblik.dk](htt
    1. Klik på din bruger.
    2. Vælg **Data Sharing**.
    3. Klik **Create token** og gennemfør trinnene med dine præferencer.
-
+ Sørg for at [HACS](https://hacs.xyz/) er installeret.
+2. Installer integrationen gennem HACS:
+   * **HACS Link** (virker kun hvis du har Home Assistant Companion app installeret):  
+   [![Open your Home Assistant instance and open a the Eloverblik repository inside the Home Assistant Community Store](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=CruentusRosa&repository=HAEloverblik&category=integration)
+   * **Manuel metode**: 
+     - Gå til **HACS** → **Integrations**
+     - Klik på **⋮** (tre prikker) → **Custom repositories**
+     - Indtast `CruentusRosa/HAEloverblik` i Repository URL
+     - Vælg `Integration` i Category
+     - Klik **Add**
+     - Find "Eloverblik" i HACS → Integrations og klik **Download**
+3. Genstart Home Assistant (Settings → ⋮ → Restart Home Assistant → Restart).
+4. [Konfigurer](#konfiguration) Eloverblik gennem Settings → Devices & Services → Add Integration.
+   * **Config Flow Link** (virker kun hvis du har Home Assistant Companion app installeret):  
+   [![Open your Home Assistant instance and start setting up a Eloverblik](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=eloverblik)
+   * **Manuel metode**: Gå til Settings → Devices & Services → Add Integ
 ### Konfiguration i Home Assistant
 
 1. Gå til **Settings** → **Devices & Services** → **Add Integration**.
@@ -96,7 +96,7 @@ For at bruge integrationen skal du have et refresh token fra [eloverblik.dk](htt
 > - Hvis du ser en fejl om at integrationen ikke understøtter konfiguration via brugerfladen, skal du:
 >   1. Genstarte Home Assistant
 >   2. Slette integrationen hvis den allerede er installeret og prøve igen
->   3. Tjekke at du har den nyeste version (0.8.2)
+>   3. Tjekke at du har den nyeste version (0.8.3)
 
 ## 📊 Sensorer og Attributter
 
@@ -632,7 +632,15 @@ Dette projekt er baseret på det oprindelige [homeassistant-eloverblik](https://
 
 ---
 
-**Version**: 0.8.2
+**Version**: 0.8.3
+
+### Hvad er nyt i 0.8.3?
+
+- **Version tracking forbedret** - Sikrer at versionen altid vises korrekt i logger
+- **Forbedret API validering** - Alle metering point ID'er valideres nu korrekt (18 alphanumeriske tegn)
+- **Bedre fejlbeskeder** - Detaljerede fejlbeskeder fra API'en inkluderer nu errorCode, errorText og detail
+- **Forbedret dato-validering** - Håndterer korrekt at dateFrom != dateTo (API fejlkode 30002)
+- **Robust fejlhåndtering** - Integrationen hopper over ugyldige metering points i stedet for at fejle
 
 ### Hvad er nyt i 0.8.2?
 
