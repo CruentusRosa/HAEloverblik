@@ -224,6 +224,15 @@ class EloverblikAPI:
         date_from = date_from.replace(hour=0, minute=0, second=0, microsecond=0)
         date_to = date_to.replace(hour=0, minute=0, second=0, microsecond=0)
         
+        # Validate dates - API doesn't accept future dates
+        today_utc = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        if date_from > today_utc:
+            _LOGGER.warning(f"Date from ({date_from.date()}) is in the future. Using today instead.")
+            date_from = today_utc
+        if date_to > today_utc:
+            _LOGGER.warning(f"Date to ({date_to.date()}) is in the future. Using today instead.")
+            date_to = today_utc
+        
         date_from_str = date_from.strftime("%Y-%m-%d")
         date_to_str = date_to.strftime("%Y-%m-%d")
         

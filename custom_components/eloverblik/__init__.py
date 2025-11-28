@@ -240,7 +240,8 @@ class HassEloverblik:
                 return
 
             # Get latest day data (yesterday, as data is 1-3 days delayed)
-            yesterday = datetime.now() - timedelta(days=1)
+            # Use UTC to avoid timezone issues, and ensure we're using date only
+            yesterday = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
             day_data_response = self._api.get_time_series(
                 self._metering_point,
                 yesterday,
