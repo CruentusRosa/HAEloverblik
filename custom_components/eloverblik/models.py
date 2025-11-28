@@ -43,7 +43,7 @@ class TimeSeries:
                     "Period": [
                       {
                         "timeInterval": {"start": "...", "end": "..."},
-                        "Point": [{"position": "1", "out_Quantity": {"quantity": "..."}}]
+                        "Point": [{"position": "1", "out_Quantity.quantity": "...", "out_Quantity.quality": "..."}]
                       }
                     ]
                   }
@@ -52,6 +52,9 @@ class TimeSeries:
             }
           ]
         }
+        
+        Note: The API returns out_Quantity.quantity and out_Quantity.quality as flat keys
+        (with dots in the key names), not as nested objects.
         """
         try:
             # Navigate through the API response structure
@@ -120,9 +123,14 @@ class TimeSeries:
                             for point_idx, point in enumerate(points):
                                 _LOGGER.warning(f"[v{VERSION}] Processing Point {point_idx + 1}, keys: {list(point.keys()) if isinstance(point, dict) else 'not a dict'}")
                                 position = point.get("position")
-                                quantity_obj = point.get("out_Quantity", {})
-                                quantity = quantity_obj.get("quantity") if isinstance(quantity_obj, dict) else None
-                                _LOGGER.warning(f"[v{VERSION}] Point {point_idx + 1} - position: {position}, quantity: {quantity}, quantity_obj type: {type(quantity_obj)}")
+                                # API returns out_Quantity.quantity as a flat key (not nested structure)
+                                # Try both formats for compatibility
+                                quantity = point.get("out_Quantity.quantity")
+                                if quantity is None:
+                                    # Fallback: try nested structure if flat key doesn't exist
+                                    quantity_obj = point.get("out_Quantity", {})
+                                    quantity = quantity_obj.get("quantity") if isinstance(quantity_obj, dict) else None
+                                _LOGGER.warning(f"[v{VERSION}] Point {point_idx + 1} - position: {position}, quantity: {quantity}")
                                 
                                 if quantity is not None:
                                     try:
