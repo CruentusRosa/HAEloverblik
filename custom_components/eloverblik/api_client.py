@@ -237,19 +237,39 @@ class EloverblikAPI:
         date_from = date_from.replace(hour=0, minute=0, second=0, microsecond=0)
         date_to = date_to.replace(hour=0, minute=0, second=0, microsecond=0)
         
-        # Validate dates - API doesn't accept future dates
+        # Validate dates - API doesn't accept future dates or today's date (data is delayed)
         today_utc = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        if date_from > today_utc:
-            _LOGGER.warning(f"[v{VERSION}] Date from ({date_from.date()}) is in the future. Using today ({today_utc.date()}) instead.")
-            date_from = today_utc
-        if date_to > today_utc:
-            _LOGGER.warning(f"[v{VERSION}] Date to ({date_to.date()}) is in the future. Using today ({today_utc.date()}) instead.")
-            date_to = today_utc
+        # API data is typically 1-3 days delayed, so we should request at least 1 day ago
+        max_date = today_utc - timedelta(days=1)
+        _LOGGER.debug(f"[v{VERSION}] Date validation - Today UTC: {today_utc.date()}, Max allowed: {max_date.date()}, From: {date_from.date()}, To: {date_to.date()}")
+        
+        # Adjust dates that are today or in the future
+        if date_from >= today_utc:
+            _LOGGER.warning(f"[v{VERSION}] Date from ({date_from.date()}) is today or in the future (today is {today_utc.date()}). Using {max_date.date()} instead (data is delayed).")
+            date_from = max_date
+        elif date_from > max_date:
+            _LOGGER.warning(f"[v{VERSION}] Date from ({date_from.date()}) is today. Using {max_date.date()} instead (data is delayed).")
+            date_from = max_date
+            
+        if date_to >= today_utc:
+            _LOGGER.warning(f"[v{VERSION}] Date to ({date_to.date()}) is today or in the future (today is {today_utc.date()}). Using {max_date.date()} instead (data is delayed).")
+            date_to = max_date
+        elif date_to > max_date:
+            _LOGGER.warning(f"[v{VERSION}] Date to ({date_to.date()}) is today. Using {max_date.date()} instead (data is delayed).")
+            date_to = max_date
         
         # Ensure date_to is not before date_from
         if date_to < date_from:
             _LOGGER.warning(f"[v{VERSION}] Date to ({date_to.date()}) is before date from ({date_from.date()}). Swapping dates.")
             date_from, date_to = date_to, date_from
+        
+        # Additional safety: Ensure dates are not too far in the past (API may have limits)
+        # Also ensure we're not requesting today's date (data is typically 1-3 days delayed)
+        max_past_days = 365  # API should support at least 1 year
+        min_date = today_utc - timedelta(days=max_past_days)
+        if date_from < min_date:
+            _LOGGER.warning(f"[v{VERSION}] Date from ({date_from.date()}) is too far in the past. Using {min_date.date()} instead.")
+            date_from = min_date
         
         date_from_str = date_from.strftime("%Y-%m-%d")
         date_to_str = date_to.strftime("%Y-%m-%d")

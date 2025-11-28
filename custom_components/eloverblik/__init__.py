@@ -252,11 +252,14 @@ class HassEloverblik:
 
             # Get latest day data (yesterday, as data is 1-3 days delayed)
             # Use UTC to avoid timezone issues, and ensure we're using date only
-            yesterday = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
+            today_utc = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            # Request data from 2 days ago to be safe (data is typically 1-3 days delayed)
+            target_date = today_utc - timedelta(days=2)
+            _LOGGER.debug(f"[v{VERSION}] Requesting day data for {target_date.date()} (today UTC: {today_utc.date()})")
             day_data_response = self._api.get_time_series(
                 self._metering_point,
-                yesterday,
-                yesterday,
+                target_date,
+                target_date,
                 aggregation="Hour"
             )
             
