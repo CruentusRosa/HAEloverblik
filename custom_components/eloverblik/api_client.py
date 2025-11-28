@@ -168,8 +168,24 @@ class EloverblikAPI:
                         continue
                     raise EloverblikAPIError("Service is temporarily unavailable. Please try again later.") from e
                 
-                # Other HTTP errors
-                raise EloverblikAPIError(f"API request failed with status {status_code}: {e}") from e
+                # Other HTTP errors - try to get more details from response
+                try:
+                    error_detail = response.text if hasattr(response, 'text') else str(e)
+                    if hasattr(response, 'json'):
+                        try:
+                            error_json = response.json()
+                            if isinstance(error_json, dict):
+                                error_code = error_json.get('errorCode', 'N/A')
+                                error_text = error_json.get('errorText', 'N/A')
+                                detail = error_json.get('detail', 'N/A')
+                                error_detail = f"ErrorCode: {error_code}, ErrorText: {error_text}, Detail: {detail}"
+                        except:
+                            pass
+                    raise EloverblikAPIError(f"API request failed with status {status_code}: {error_detail}") from e
+                except EloverblikAPIError:
+                    raise
+                except:
+                    raise EloverblikAPIError(f"API request failed with status {status_code}: {e}") from e
                 
             except RequestException as e:
                 if attempt < max_retries - 1:
@@ -237,31 +253,50 @@ class EloverblikAPI:
         date_from = date_from.replace(hour=0, minute=0, second=0, microsecond=0)
         date_to = date_to.replace(hour=0, minute=0, second=0, microsecond=0)
         
-        # Validate dates - API doesn't accept future dates or today's date (data is delayed)
+        # Validate dates according to API specification:
+        # - FromDateIsGreaterThanToday = 30000: dateFrom cannot be >= today
+        # - ToDateIsGreaterThanToday = 30003: dateTo cannot be >= today
+        # - ToDateCanNotBeEqualToFromDate = 30002: dateTo cannot equal dateFrom
+        # - FromDateIsGreaterThanToDate = 30001: dateFrom cannot be > dateTo
+        # - Max period: 730 days
+        # - Data available: previous 5 years + current year
+        
         today_utc = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         # API data is typically 1-3 days delayed, so we should request at least 1 day ago
         max_date = today_utc - timedelta(days=1)
         _LOGGER.debug(f"[v{VERSION}] Date validation - Today UTC: {today_utc.date()}, Max allowed: {max_date.date()}, From: {date_from.date()}, To: {date_to.date()}")
         
-        # Adjust dates that are today or in the future
+        # Adjust dates that are today or in the future (API error 30000, 30003)
         if date_from >= today_utc:
-            _LOGGER.warning(f"[v{VERSION}] Date from ({date_from.date()}) is today or in the future (today is {today_utc.date()}). Using {max_date.date()} instead (data is delayed).")
+            _LOGGER.warning(f"[v{VERSION}] Date from ({date_from.date()}) is today or in the future (today is {today_utc.date()}). Using {max_date.date()} instead (API error 30000).")
             date_from = max_date
         elif date_from > max_date:
-            _LOGGER.warning(f"[v{VERSION}] Date from ({date_from.date()}) is today. Using {max_date.date()} instead (data is delayed).")
+            _LOGGER.warning(f"[v{VERSION}] Date from ({date_from.date()}) is today. Using {max_date.date()} instead (API error 30000).")
             date_from = max_date
             
         if date_to >= today_utc:
-            _LOGGER.warning(f"[v{VERSION}] Date to ({date_to.date()}) is today or in the future (today is {today_utc.date()}). Using {max_date.date()} instead (data is delayed).")
+            _LOGGER.warning(f"[v{VERSION}] Date to ({date_to.date()}) is today or in the future (today is {today_utc.date()}). Using {max_date.date()} instead (API error 30003).")
             date_to = max_date
         elif date_to > max_date:
-            _LOGGER.warning(f"[v{VERSION}] Date to ({date_to.date()}) is today. Using {max_date.date()} instead (data is delayed).")
+            _LOGGER.warning(f"[v{VERSION}] Date to ({date_to.date()}) is today. Using {max_date.date()} instead (API error 30003).")
             date_to = max_date
         
-        # Ensure date_to is not before date_from
+        # Ensure date_to is not before date_from (API error 30001)
         if date_to < date_from:
-            _LOGGER.warning(f"[v{VERSION}] Date to ({date_to.date()}) is before date from ({date_from.date()}). Swapping dates.")
+            _LOGGER.warning(f"[v{VERSION}] Date to ({date_to.date()}) is before date from ({date_from.date()}). Swapping dates (API error 30001).")
             date_from, date_to = date_to, date_from
+        
+        # Ensure dateFrom != dateTo (API error 30002: ToDateCanNotBeEqualToFromDate)
+        if date_from == date_to:
+            # If they're equal, extend date_to by 1 day
+            date_to = date_from + timedelta(days=1)
+            # But ensure date_to is still not >= today
+            if date_to >= today_utc:
+                # If extending would make it today, go back one day from date_from instead
+                date_from = date_from - timedelta(days=1)
+                _LOGGER.warning(f"[v{VERSION}] Date from and to were equal ({date_to.date()}). Adjusted to {date_from.date()} to {date_to.date()} (API error 30002).")
+            else:
+                _LOGGER.warning(f"[v{VERSION}] Date from and to were equal ({date_from.date()}). Extended date_to to {date_to.date()} (API error 30002).")
         
         # Additional safety: Ensure dates are not too far in the past (API may have limits)
         # API should support at least 1 year, but we'll allow up to 2 years for safety
@@ -275,6 +310,11 @@ class EloverblikAPI:
         date_to_str = date_to.strftime("%Y-%m-%d")
         
         _LOGGER.debug(f"[v{VERSION}] Requesting time series: {date_from_str} to {date_to_str} ({aggregation})")
+        
+        # Validate metering point ID format (should be 18 alphanumeric characters)
+        if not metering_point or not isinstance(metering_point, str) or len(metering_point) != 18 or not metering_point.isalnum():
+            _LOGGER.error(f"[v{VERSION}] Invalid metering point ID format: {metering_point}. Expected 18 alphanumeric characters.")
+            raise EloverblikAPIError(f"Invalid metering point ID format: {metering_point}")
         
         endpoint = f"/meterdata/gettimeseries/{date_from_str}/{date_to_str}/{aggregation}"
         data = {
@@ -299,6 +339,11 @@ class EloverblikAPI:
         Returns:
             Charges data or None if error
         """
+        # Validate metering point ID format (should be 18 alphanumeric characters)
+        if not metering_point or not isinstance(metering_point, str) or len(metering_point) != 18 or not metering_point.isalnum():
+            _LOGGER.error(f"[v{VERSION}] Invalid metering point ID format: {metering_point}. Expected 18 alphanumeric characters.")
+            raise EloverblikAPIError(f"Invalid metering point ID format: {metering_point}")
+        
         endpoint = "/meteringpoints/meteringpoint/getcharges"
         data = {
             "meteringPoints": {
@@ -347,6 +392,11 @@ class EloverblikAPI:
         Returns:
             Metering point details or None if error
         """
+        # Validate metering point ID format (should be 18 alphanumeric characters)
+        if not metering_point or not isinstance(metering_point, str) or len(metering_point) != 18 or not metering_point.isalnum():
+            _LOGGER.error(f"[v{VERSION}] Invalid metering point ID format: {metering_point}. Expected 18 alphanumeric characters.")
+            raise EloverblikAPIError(f"Invalid metering point ID format: {metering_point}")
+        
         endpoint = "/meteringpoints/meteringpoint/getdetails"
         data = {
             "meteringPoints": {

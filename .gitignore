@@ -110,6 +110,14 @@ ENV/
 env.bak/
 venv.bak/
 
+# Test files (not part of git)
+test.py
+.env.example
+
+# Test files
+test.py
+.env.example
+
 # Spyder project settings
 .spyderproject
 .spyproject

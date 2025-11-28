@@ -65,6 +65,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     # Create clients for all metering points
     clients = {}
     for metering_point in metering_points:
+        # Validate metering point ID format (should be 18 alphanumeric characters)
+        if not metering_point or not isinstance(metering_point, str) or len(metering_point) != 18 or not metering_point.isalnum():
+            _LOGGER.warning(f"[v{VERSION}] Skipping invalid metering point ID: {metering_point}. Expected 18 alphanumeric characters.")
+            continue
+        
         client = HassEloverblik(refresh_token, metering_point)
         
         # Fetch metering point details for additional information
@@ -252,14 +257,16 @@ class HassEloverblik:
 
             # Get latest day data (yesterday, as data is 1-3 days delayed)
             # Use UTC to avoid timezone issues, and ensure we're using date only
+            # API doesn't accept dateFrom == dateTo (error 30002), so we request a range
             today_utc = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-            # Request data from 2 days ago to be safe (data is typically 1-3 days delayed)
-            target_date = today_utc - timedelta(days=2)
-            _LOGGER.debug(f"[v{VERSION}] Requesting day data for {target_date.date()} (today UTC: {today_utc.date()})")
+            # Request data from 3 days ago to 2 days ago (data is typically 1-3 days delayed)
+            date_to = today_utc - timedelta(days=2)
+            date_from = date_to - timedelta(days=1)
+            _LOGGER.debug(f"[v{VERSION}] Requesting day data from {date_from.date()} to {date_to.date()} (today UTC: {today_utc.date()})")
             day_data_response = self._api.get_time_series(
                 self._metering_point,
-                target_date,
-                target_date,
+                date_from,
+                date_to,
                 aggregation="Hour"
             )
             
