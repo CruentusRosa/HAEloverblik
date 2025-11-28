@@ -96,7 +96,7 @@ For at bruge integrationen skal du have et refresh token fra [eloverblik.dk](htt
 > - Hvis du ser en fejl om at integrationen ikke understøtter konfiguration via brugerfladen, skal du:
 >   1. Genstarte Home Assistant
 >   2. Slette integrationen hvis den allerede er installeret og prøve igen
->   3. Tjekke at du har den nyeste version (0.8.1)
+>   3. Tjekke at du har den nyeste version (0.8.2)
 
 ## 📊 Sensorer og Attributter
 
@@ -632,7 +632,14 @@ Dette projekt er baseret på det oprindelige [homeassistant-eloverblik](https://
 
 ---
 
-**Version**: 0.8.1
+**Version**: 0.8.2
+
+### Hvad er nyt i 0.8.2?
+
+- **Forbedret API validering** - Alle metering point ID'er valideres nu korrekt (18 alphanumeriske tegn)
+- **Bedre fejlbeskeder** - Detaljerede fejlbeskeder fra API'en inkluderer nu errorCode, errorText og detail
+- **Forbedret dato-validering** - Håndterer korrekt at dateFrom != dateTo (API fejlkode 30002)
+- **Robust fejlhåndtering** - Integrationen hopper over ugyldige metering points i stedet for at fejle
 
 ### Hvad er nyt i 0.8.1?
 
