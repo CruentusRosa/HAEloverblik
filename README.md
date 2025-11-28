@@ -67,7 +67,7 @@ For at bruge integrationen skal du have et refresh token fra [eloverblik.dk](htt
 3. Genstart Home Assistant (Settings → ⋮ → Restart Home Assistant → Restart).
 4. [Konfigurer](#konfiguration) Eloverblik gennem Settings → Devices & Services → Add Integration.
    * **Config Flow Link** (virker kun hvis du har Home Assistant Companion app installeret):  
-   [![Open your Home Assistant instance and start setting up a Eloverblik](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=eloverblik)
+     [![Open your Home Assistant instance and start setting up a Eloverblik](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=eloverblik)
    * **Manuel metode**: Gå til Settings → Devices & Services → Add Integ
 ### Konfiguration i Home Assistant
 
@@ -82,7 +82,7 @@ For at bruge integrationen skal du have et refresh token fra [eloverblik.dk](htt
 > - Hvis du ser en fejl om at integrationen ikke understøtter konfiguration via brugerfladen, skal du:
 >   1. Genstarte Home Assistant
 >   2. Slette integrationen hvis den allerede er installeret og prøve igen
->   3. Tjekke at du har den nyeste version (0.8.9)
+>   3. Tjekke at du har den nyeste version (0.9.0)
 
 ## 📊 Sensorer og Attributter
 
@@ -300,7 +300,7 @@ sensor:
     sampling_size: 50
     state_characteristic: mean
     max_age:
-      days: 30
+        days: 30
 ```
 
 **Lovelace:**
@@ -618,7 +618,13 @@ Dette projekt er baseret på det oprindelige [homeassistant-eloverblik](https://
 
 ---
 
-**Version**: 0.8.9
+**Version**: 0.9.0
+
+### Hvad er nyt i 0.9.0?
+
+- **Forbedret parsing diagnosticering** - Logger nu market document struktur og TimeSeries indhold
+- **Bedre fejlsporing** - Kan nu se præcis hvor parsing fejler og hvad der mangler
+- **Mere detaljeret logging** - Viser nu antal TimeSeries og data points fundet
 
 ### Hvad er nyt i 0.8.9?
 

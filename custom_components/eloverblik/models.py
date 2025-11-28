@@ -77,12 +77,17 @@ class TimeSeries:
                     _LOGGER.warning(f"[v{VERSION}] Market document is not a dict: {type(market_doc)}")
                     return
                 
+                _LOGGER.warning(f"[v{VERSION}] Market document found, keys: {list(market_doc.keys())}")
+                
                 time_series_list = market_doc.get("TimeSeries", [])
                 
                 if not time_series_list:
                     _LOGGER.warning(f"[v{VERSION}] No TimeSeries found in market document. Market doc keys: {list(market_doc.keys()) if isinstance(market_doc, dict) else 'not a dict'}")
+                    # Log the full market document structure for debugging
+                    _LOGGER.warning(f"[v{VERSION}] Market document content (first 500 chars): {str(market_doc)[:500]}")
                 
                 if time_series_list:
+                    _LOGGER.warning(f"[v{VERSION}] Found {len(time_series_list)} TimeSeries in market document")
                     # Combine all periods into one time series
                     all_points = []
                     latest_end = None
