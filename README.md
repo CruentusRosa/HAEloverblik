@@ -40,21 +40,7 @@ Bemærk at Eloverblik API kan være ustabilt og langsomt - dette er uden for vor
 
 1.ration → Søg efter "Eloverblik"
 
-### Manuel Installation (Alternativ)
-
-Hvis du ikke kan bruge HACS, kan du installere integrationen manuelt:
-
-1. Download eller klon dette repository.
-2. Kopiér `eloverblik` mappen ind i din `custom_components` mappe i din Home Assistant konfigurationsmappe.
-   - Strukturen skal være: `custom_components/eloverblik/` med alle filer inde i `eloverblik` mappen.
-   - Sørg for at alle filer er kopieret korrekt (inkl. `config_flow.py`, `manifest.json`, etc.)
-3. Genstart Home Assistant (Settings → ⋮ → Restart Home Assistant → Restart).
-4. [Konfigurer](#konfiguration) Eloverblik gennem Settings → Devices & Services → Add Integration.
-   * **Config Flow Link** (virker kun hvis du har Home Assistant Companion app installeret):  
-   [![Open your Home Assistant instance and start setting up a Eloverblik](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=eloverblik)
-   * **Manuel metode**: Gå til Settings → Devices & Services → Add Integration → Søg efter "Eloverblik"
-
-> **Bemærk**: HACS er stærkt anbefalet, da det gør opdateringer meget nemmere.
+ne
 
 ## ⚙️ Konfiguration
 
@@ -96,7 +82,7 @@ For at bruge integrationen skal du have et refresh token fra [eloverblik.dk](htt
 > - Hvis du ser en fejl om at integrationen ikke understøtter konfiguration via brugerfladen, skal du:
 >   1. Genstarte Home Assistant
 >   2. Slette integrationen hvis den allerede er installeret og prøve igen
->   3. Tjekke at du har den nyeste version (0.8.3)
+>   3. Tjekke at du har den nyeste version (0.8.4)
 
 ## 📊 Sensorer og Attributter
 
@@ -632,7 +618,13 @@ Dette projekt er baseret på det oprindelige [homeassistant-eloverblik](https://
 
 ---
 
-**Version**: 0.8.3
+**Version**: 0.8.4
+
+### Hvad er nyt i 0.8.4?
+
+- **Forbedret data parsing** - Støtter nu både `MyEnergyData_MarketDocument` og `MyEnergyDataMarketDocument` strukturer
+- **Bedre debug logging** - Viser nu response struktur når data ikke kan parses, for nemmere debugging
+- **Forbedret fejlhåndtering** - Bedre håndtering af forskellige API response formater
 
 ### Hvad er nyt i 0.8.3?
 

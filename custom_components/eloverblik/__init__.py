@@ -271,6 +271,7 @@ class HassEloverblik:
             )
             
             if day_data_response:
+                _LOGGER.debug(f"[v{VERSION}] Received day data response, keys: {list(day_data_response.keys()) if isinstance(day_data_response, dict) else 'not a dict'}")
                 time_series_dict = self._parse_time_series_response(day_data_response)
                 if time_series_dict:
                     # Get the first (and should be only) time series
@@ -279,6 +280,7 @@ class HassEloverblik:
                     _LOGGER.debug(f"[v{VERSION}] Successfully updated day data")
                 else:
                     _LOGGER.warning(f"[v{VERSION}] No day data parsed from response. Data may not be available yet (typically 1-3 days delayed).")
+                    _LOGGER.debug(f"[v{VERSION}] Response structure: {str(day_data_response)[:500]}")  # Log first 500 chars for debugging
                     # Keep existing data if available
             else:
                 _LOGGER.warning(f"[v{VERSION}] Failed to get day data from Eloverblik. Data may not be available yet (typically 1-3 days delayed).")

@@ -55,9 +55,10 @@ class TimeSeries:
                     _LOGGER.warning(f"API returned error: {error_code} - {error_text}")
                     return
                 
-                market_doc = response_item.get("MyEnergyData_MarketDocument", {})
+                # Try different possible keys for the market document
+                market_doc = response_item.get("MyEnergyData_MarketDocument") or response_item.get("MyEnergyDataMarketDocument", {})
                 
-                time_series_list = market_doc.get("TimeSeries", [])
+                time_series_list = market_doc.get("TimeSeries", []) if isinstance(market_doc, dict) else []
                 
                 if time_series_list:
                     # Combine all periods into one time series
