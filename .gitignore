@@ -114,10 +114,6 @@ venv.bak/
 test.py
 .env.example
 
-# Test files
-test.py
-.env.example
-
 # Spyder project settings
 .spyderproject
 .spyproject
