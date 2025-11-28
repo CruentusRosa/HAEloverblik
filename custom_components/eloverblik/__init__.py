@@ -258,11 +258,13 @@ class HassEloverblik:
             # Get latest day data (yesterday, as data is 1-3 days delayed)
             # Use UTC to avoid timezone issues, and ensure we're using date only
             # API doesn't accept dateFrom == dateTo (error 30002), so we request a range
+            # Use same logic as test.py: request from 3 days ago to 2 days ago
             today_utc = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
             # Request data from 3 days ago to 2 days ago (data is typically 1-3 days delayed)
+            # This matches the test.py logic that successfully retrieves data
             date_to = today_utc - timedelta(days=2)
             date_from = date_to - timedelta(days=1)
-            _LOGGER.debug(f"[v{VERSION}] Requesting day data from {date_from.date()} to {date_to.date()} (today UTC: {today_utc.date()})")
+            _LOGGER.info(f"[v{VERSION}] Requesting day data from {date_from.date()} to {date_to.date()} (today UTC: {today_utc.date()}) - using same logic as test.py")
             day_data_response = self._api.get_time_series(
                 self._metering_point,
                 date_from,
