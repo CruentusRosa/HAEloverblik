@@ -92,11 +92,15 @@ class TimeSeries:
                     all_points = []
                     latest_end = None
                     
-                    for time_series in time_series_list:
+                    for idx, time_series in enumerate(time_series_list):
+                        _LOGGER.warning(f"[v{VERSION}] Processing TimeSeries {idx + 1}, keys: {list(time_series.keys()) if isinstance(time_series, dict) else 'not a dict'}")
                         periods = time_series.get("Period", [])
+                        _LOGGER.warning(f"[v{VERSION}] Found {len(periods)} Period(s) in TimeSeries {idx + 1}")
                         
-                        for period in periods:
+                        for period_idx, period in enumerate(periods):
+                            _LOGGER.warning(f"[v{VERSION}] Processing Period {period_idx + 1}, keys: {list(period.keys()) if isinstance(period, dict) else 'not a dict'}")
                             points = period.get("Point", [])
+                            _LOGGER.warning(f"[v{VERSION}] Found {len(points)} Point(s) in Period {period_idx + 1}")
                             
                             # Extract time interval
                             time_interval = period.get("timeInterval", {})
@@ -113,10 +117,12 @@ class TimeSeries:
                                         _LOGGER.debug(f"Could not parse date: {end_str} - {e}")
                             
                             # Extract metering data from points
-                            for point in points:
+                            for point_idx, point in enumerate(points):
+                                _LOGGER.warning(f"[v{VERSION}] Processing Point {point_idx + 1}, keys: {list(point.keys()) if isinstance(point, dict) else 'not a dict'}")
                                 position = point.get("position")
                                 quantity_obj = point.get("out_Quantity", {})
                                 quantity = quantity_obj.get("quantity") if isinstance(quantity_obj, dict) else None
+                                _LOGGER.warning(f"[v{VERSION}] Point {point_idx + 1} - position: {position}, quantity: {quantity}, quantity_obj type: {type(quantity_obj)}")
                                 
                                 if quantity is not None:
                                     try:

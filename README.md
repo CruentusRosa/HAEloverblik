@@ -82,7 +82,7 @@ For at bruge integrationen skal du have et refresh token fra [eloverblik.dk](htt
 > - Hvis du ser en fejl om at integrationen ikke understøtter konfiguration via brugerfladen, skal du:
 >   1. Genstarte Home Assistant
 >   2. Slette integrationen hvis den allerede er installeret og prøve igen
->   3. Tjekke at du har den nyeste version (0.9.1)
+>   3. Tjekke at du har den nyeste version (0.9.2)
 
 ## 📊 Sensorer og Attributter
 
@@ -618,7 +618,13 @@ Dette projekt er baseret på det oprindelige [homeassistant-eloverblik](https://
 
 ---
 
-**Version**: 0.9.1
+**Version**: 0.9.2
+
+### Hvad er nyt i 0.9.2?
+
+- **Meget detaljeret parsing diagnosticering** - Logger nu hver step i TimeSeries, Period og Point parsing
+- **Bedre fejlsporing** - Kan nu se præcis hvilke keys der findes i hver struktur
+- **Mere detaljeret logging** - Viser nu antal Periods og Points fundet, samt deres indhold
 
 ### Hvad er nyt i 0.9.1?
 
