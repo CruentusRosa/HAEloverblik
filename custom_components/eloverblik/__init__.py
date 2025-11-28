@@ -267,17 +267,23 @@ class HassEloverblik:
             _LOGGER.info(f"[v{VERSION}] Requesting day data from {date_from.date()} to {date_to.date()} (today UTC: {today_utc.date()}) - using same logic as test.py")
             _LOGGER.info(f"[v{VERSION}] Using metering point: {self._metering_point}")
             
-            day_data_response = self._api.get_time_series(
-                self._metering_point,
-                date_from,
-                date_to,
-                aggregation="Hour"
-            )
+            try:
+                day_data_response = self._api.get_time_series(
+                    self._metering_point,
+                    date_from,
+                    date_to,
+                    aggregation="Hour"
+                )
+            except Exception as e:
+                _LOGGER.error(f"[v{VERSION}] Exception when calling get_time_series: {e}", exc_info=True)
+                day_data_response = None
             
             if day_data_response is None:
                 _LOGGER.warning(f"[v{VERSION}] API returned None for day data. Check API logs above for errors.")
             elif not day_data_response:
-                _LOGGER.warning(f"[v{VERSION}] API returned empty response for day data.")
+                _LOGGER.warning(f"[v{VERSION}] API returned empty response for day data: {day_data_response}")
+            else:
+                _LOGGER.info(f"[v{VERSION}] API returned response (type: {type(day_data_response)})")
             
             if day_data_response:
                 _LOGGER.info(f"[v{VERSION}] Received day data response, keys: {list(day_data_response.keys()) if isinstance(day_data_response, dict) else 'not a dict'}")
