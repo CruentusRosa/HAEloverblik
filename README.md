@@ -618,7 +618,14 @@ Dette projekt er baseret på det oprindelige [homeassistant-eloverblik](https://
 
 ---
 
-**Version**: 0.9.3
+**Version**: 0.10.0
+
+### Hvad er nyt i 0.10.0?
+
+- **Fixet quantity parsing** - API'en returnerer `out_Quantity.quantity` som flat key (ikke nested struktur). Dette fixer problemet hvor alle quantity værdier var None og ingen data blev parset.
+- **Fixet deprecation warning** - Tilføjet `mean_type=None` parameter til `async_import_statistics()` for at fikse Home Assistant 2026.11 deprecation warning.
+- **Reduceret excessive logging** - Ændret mange WARNING logs til DEBUG niveau. Kun kritiske fejl og vigtige status opdateringer forbliver på WARNING/INFO niveau.
+- **Forbedret kompatibilitet** - Håndterer nu både flat keys (`out_Quantity.quantity`) og nested struktur (`out_Quantity.quantity`) fra API'en.
 
 ### Hvad er nyt i 0.9.3?
 
