@@ -314,6 +314,7 @@ class EloverblikStatistic(SensorEntity):
         if StatisticMeanType is not None:
             # Required from Home Assistant 2026.11 (replaces has_mean)
             metadata["mean_type"] = StatisticMeanType.NONE
+            metadata["unit_class"] = "energy"
 
         if len(statistics) > 0:
             async_import_statistics(self.hass, metadata, statistics)
