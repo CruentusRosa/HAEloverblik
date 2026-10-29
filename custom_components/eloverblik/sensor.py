@@ -16,6 +16,10 @@ from homeassistant.components.recorder.models import (
     StatisticData,
     StatisticMetaData
 )
+try:
+    from homeassistant.components.recorder.models import StatisticMeanType
+except ImportError:  # Older Home Assistant versions
+    StatisticMeanType = None
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.components.sensor import (
@@ -307,16 +311,12 @@ class EloverblikStatistic(SensorEntity):
             has_mean=False,
             has_sum=True,
         )
+        if StatisticMeanType is not None:
+            # Required from Home Assistant 2026.11 (replaces has_mean)
+            metadata["mean_type"] = StatisticMeanType.NONE
 
         if len(statistics) > 0:
-            # mean_type is required in Home Assistant 2026.11+
-            # Since has_mean=False, we use None for mean_type
-            # Try with mean_type first (newer HA versions), fallback to without (older versions)
-            try:
-                async_import_statistics(self.hass, metadata, statistics, mean_type=None)
-            except TypeError:
-                # Older Home Assistant versions don't support mean_type parameter
-                async_import_statistics(self.hass, metadata, statistics)
+            async_import_statistics(self.hass, metadata, statistics)
             # Update sensor value to latest total for real-time display
             if statistics:
                 self._last_total = statistics[-1]["sum"]

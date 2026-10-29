@@ -91,9 +91,14 @@ class TimeSeries:
                 
                 if time_series_list:
                     _LOGGER.debug(f"[v{VERSION}] Found {len(time_series_list)} TimeSeries in market document")
-                    # Combine all periods into one time series
+                    # Combine all periods into one time series.
+                    # Points are ordered by (period order, position) so that a
+                    # multi-day response keeps its chronological order. Sorting
+                    # by position alone would interleave the days (all hour-1
+                    # values first, then all hour-2 values, ...).
                     all_points = []
                     latest_end = None
+                    period_counter = 0
                     
                     for idx, time_series in enumerate(time_series_list):
                         _LOGGER.debug(f"[v{VERSION}] Processing TimeSeries {idx + 1}, keys: {list(time_series.keys()) if isinstance(time_series, dict) else 'not a dict'}")
@@ -101,6 +106,7 @@ class TimeSeries:
                         _LOGGER.debug(f"[v{VERSION}] Found {len(periods)} Period(s) in TimeSeries {idx + 1}")
                         
                         for period_idx, period in enumerate(periods):
+                            period_counter += 1
                             _LOGGER.debug(f"[v{VERSION}] Processing Period {period_idx + 1}, keys: {list(period.keys()) if isinstance(period, dict) else 'not a dict'}")
                             points = period.get("Point", [])
                             _LOGGER.debug(f"[v{VERSION}] Found {len(points)} Point(s) in Period {period_idx + 1}")
@@ -133,14 +139,14 @@ class TimeSeries:
                                 
                                 if quantity is not None:
                                     try:
-                                        all_points.append((int(position), float(quantity)))
+                                        all_points.append((period_counter, int(position), float(quantity)))
                                     except (ValueError, TypeError):
                                         pass
                     
-                    # Sort by position and extract values
+                    # Sort by (period, position) and extract values
                     if all_points:
-                        all_points.sort(key=lambda x: x[0])
-                        self._metering_data = [qty for _, qty in all_points]
+                        all_points.sort(key=lambda x: (x[0], x[1]))
+                        self._metering_data = [qty for _, _, qty in all_points]
                         self.data_date = latest_end
                     
         except (KeyError, IndexError, TypeError, AttributeError) as e:
@@ -200,7 +206,13 @@ class ChargesData:
                     name = tariff.get("name", "unknown")
                     prices = tariff.get("prices", [])
                     
-                    if prices:
+                    if len(prices) == 1:
+                        # Single price: the tariff applies to all hours of the day
+                        try:
+                            self.charges[name] = [float(prices[0].get("price", 0.0))] * 24
+                        except (ValueError, TypeError):
+                            self.charges[name] = [0.0] * 24
+                    elif prices:
                         # Create hourly price array
                         hourly_prices = [0.0] * 24
                         for price_entry in prices:
