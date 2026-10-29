@@ -179,7 +179,12 @@ class EloverblikStatistic(SensorEntity):
 
     _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
     _attr_device_class = SensorDeviceClass.ENERGY
-    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    # Deliberately NO state_class: the long-term statistics for this entity are
+    # imported from Eloverblik via async_import_statistics. If the entity also
+    # has a state_class, the recorder compiles its own hourly statistics from
+    # the entity state (0 until the first import), which resets the imported
+    # total to 0 and blocks further imports because the recorder-written
+    # statistic always looks "fresh" to _async_update_statistics.
 
     def __init__(self, hass_eloverblik: HassEloverblik, suffix: str = ""):
         self._attr_name = f"Eloverblik Energy Statistic{suffix}"

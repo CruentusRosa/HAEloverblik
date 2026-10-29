@@ -230,17 +230,21 @@ class HassEloverblik:
         return self._metering_point
 
     def get_tariff_sum_hour(self, hour: int) -> Optional[float]:
-        """Get the sum of all tariffs for a specific hour."""
+        """Get the sum of all per-kWh tariffs for a specific hour.
+
+        Only hourly tariffs (kr/kWh) are summed. Subscriptions and fees are
+        fixed amounts per month and must not be added to a kr/kWh price.
+        """
         if self._tariff_data is not None:
             tariff_sum = 0.0
-            for tariff in self._tariff_data.charges.values():
+            for name, tariff in self._tariff_data.charges.items():
                 if isinstance(tariff, list):
                     if len(tariff) == 24:
                         tariff_sum += tariff[hour - 1]
                     else:
                         _LOGGER.warning(f"[v{VERSION}] Unexpected length of tariff array ({len(tariff)}), expected 24 entries.")
                 else:
-                    tariff_sum += float(tariff)
+                    _LOGGER.debug(f"[v{VERSION}] Skipping fixed charge '{name}' ({tariff}) in kr/kWh tariff sum")
             return tariff_sum
         return None
 
